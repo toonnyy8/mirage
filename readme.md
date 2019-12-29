@@ -58,11 +58,11 @@ e.g:
 int a;
 _(assign,a,10);//a=10
 
-_(<type>,<variableName>,<value>);//宣告變數並賦值
+_(define,<variableName>,_(<type>,<value>));//宣告變數並賦值
 e.g:
-_(int,a,10);//a=10
+_(define,a,_(int,10));//a=10
 
-_(<type>,<variableName>);//轉型
+_(<type>,<value>);//轉型
 e.g:
 int a;
 _(assign,a,10);
