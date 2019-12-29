@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@babel/polyfill": "^7.4.4",
-    "parcel": "^1.12.3"
+    "@babel/polyfill": "^7.7.0",
+    "parcel": "^1.12.4"
   }
 }

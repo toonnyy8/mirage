@@ -68,17 +68,17 @@ int a;
 _(assign,a,10);
 _(float,a);//return 10.0
 
-_(add,int,10);//int作為佔位符號，不會執行func
+_(add,int,10);//int作為佔位符號，不會執行func=>func不完整
 _(
     _(add,int,10),
     9
 );//等同 _(add,9,10)
 
-`_(add,9,10)`;``作為凍結器，不會執行func
+`_(add,9,10)`;``作為凍結器，不會執行func=>func沒被觸發
 
 _(
     assign,
-    _(add,null),//null作為佔位符號，不會執行func
-    `_(add,9,10)`//``作為凍結器，不會執行func
+    _(add,null),//null作為佔位符號，不會執行func=>func不完整
+    `_(add,9,10)`//``作為凍結器，不會執行func=>func沒被觸發
 );//執行 _(add)回傳19
 ```
