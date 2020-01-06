@@ -1,18 +1,29 @@
 {
-  "name": "test",
+  "name": "mirage",
   "version": "1.0.0",
-  "description": "",
+  "description": "```\r bool",
   "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "parcel index.html -p 8080 --open",
-    "build": "parcel build --no-content-hash index.html --out-dir build --public-url=./"
+    "dev": "parcel ./test/index.html -p 8080 --open"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toonnyy8/Mirage.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/toonnyy8/Mirage/issues"
+  },
+  "homepage": "https://github.com/toonnyy8/Mirage#readme",
   "dependencies": {
-    "@babel/polyfill": "^7.7.0",
-    "parcel": "^1.12.4"
+    "core-js": "^3.6.1",
+    "parcel": "^1.12.4",
+    "regenerator-runtime": "^0.13.3"
   }
 }
