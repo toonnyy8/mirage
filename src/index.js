@@ -1,29 +1,39 @@
 import "core-js/stable"
 import "regenerator-runtime/runtime"
 
-class Ptr {
-    constructor() {
-        this._value = null
+class Memory {
+    constructor(type) {
+        this._type = type
+        this._data = null
     }
-    set value(data) {
-        if (data instanceof Ptr) {
-            this._value = data.value
+    set data(value) {
+        if (this._type !== null && this._type !== undefined) {
+            if (mem instanceof this._type) {
+                this._data = value
+            } else {
+                let error = new Error("type error");
+                console.log(error)
+            }
         } else {
-            this._value = data
+            this._data = value
         }
     }
-    get value() {
-        return this._value
+    get data() {
+        return this._data
     }
 }
 
-export let ptr = () => new Ptr()
+export let memory = (type) => new Memory(type)
 
 export let _ = (...args) => {
     return args[0](...args.slice(1))
 }
 
 export let assign = (x, y) => {
-    x.value = y
+    x.data = y
     return x
+}
+
+export let load = (x) => {
+    return x.data
 }

@@ -1,18 +1,22 @@
 import "core-js/stable";
 import "regenerator-runtime/runtime";
 
-import { ptr, _, assign } from "../src/"
+import { memory, _, assign, load } from "../src/"
 
-let x = ptr()
-let y = ptr()
+let x = memory()
+let y = memory()
+let z = memory()
 
-_(assign, x, [10])
+_(assign, x, " [10]")
 
 _(assign, y, x)
 
-_(assign, y, 100)
+_(assign, z, _(load, x))
 
+// _(assign, y, 100)
 
-_(console.log, x)
 
 _(console.log, y)
+
+_(console.log, z)
+
