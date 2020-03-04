@@ -1,4 +1,4 @@
-#Basic types
+# Data type
 ```
 bool
 
@@ -82,3 +82,16 @@ _(
     `_(add,9,10)`//``作為凍結器，不會執行func=>func沒被觸發
 );//執行 _(add)回傳19
 ```
+
+# Variable
+# Data type
+# Expression
+表達式
+# Control flow
+# Subroutine
+子程序、像函數等等
+# Abstract data type
+# Concurrency
+
+# Exception
+例外處理
