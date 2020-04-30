@@ -84,6 +84,8 @@ _(
 ```
 
 # Variable
+變數在離開定義域後會自行清除
+
 # Data type
 # Expression
 表達式
@@ -95,3 +97,11 @@ _(
 
 # Exception
 例外處理
+
+# 特徵
+智慧指針
+
+lambda function
+
+型別推斷
+
