@@ -25,5 +25,8 @@
     "core-js": "^3.6.1",
     "parcel": "^1.12.4",
     "regenerator-runtime": "^0.13.3"
+  },
+  "devDependencies": {
+    "typescript": "^3.8.3"
   }
 }
