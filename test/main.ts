@@ -9,20 +9,22 @@ interface NFAElement {
 
 type NFA = Array<NFAElement>
 
+let u = 0
+
 let createNFAElement = () => {
     return <NFAElement>{
-        state: Symbol(),
+        state: Symbol(u++),
         action: null,
         next: []
     }
 }
 
-let vocabulary = (nfa: NFA, action: string) => {
-    let terminalElement = nfa[nfa.length - 1]
+let vocabulary = (action: string) => {
+    let start = createNFAElement()
     let next = createNFAElement()
-    terminalElement.action = action
-    terminalElement.next.push(next.state)
-    return nfa
+    start.action = action
+    start.next.push(next.state)
+    return [start, next]
 }
 
 let catenation = (nfa1: NFA, nfa2: NFA) => {
@@ -66,3 +68,66 @@ let kleene = (nfa: NFA) => {
 
     return [startElement, ...nfa, endElement]
 }
+
+let regParser = (reg: string[]) => {
+    let subnfas: Array<NFA> = []
+    let subreg: Array<string> = []
+    let left = 0
+    for (let n = 0; n < reg.length; n++) {
+        switch (reg[n]) {
+            case "*": {
+                if (left == 0) {
+                    subnfas.push(kleene(subnfas.pop()))
+                } else {
+                    subreg.push("*")
+                }
+                break
+            }
+            case "(": {
+                left += 1
+                break
+            }
+            case ")": {
+                left -= 1
+                if (left == 0) {
+                    subnfas.push(regParser(subreg))
+                }
+                break
+            }
+            case "|": {
+                if (left == 0) {
+                    subreg = reg.slice(n + 1)
+                    n += subreg.length
+
+                    subnfas = [
+                        alternation(
+                            subnfas.slice(1).reduce((prev, curr) => {
+                                return catenation(prev, curr)
+                            }, subnfas[0]),
+                            regParser(subreg)
+                        )
+                    ]
+                } else {
+                    subreg.push("|")
+                }
+
+                break
+            }
+            default: {
+                if (left == 0) {
+                    subnfas.push(vocabulary(reg[n]))
+                } else {
+                    subreg.push(reg[n])
+                }
+                break
+            }
+        }
+    }
+
+    return subnfas.slice(1).reduce((prev, curr) => {
+        return catenation(prev, curr)
+    }, subnfas[0])
+}
+
+
+console.log(regParser("as(b*|f)g".split("")))
