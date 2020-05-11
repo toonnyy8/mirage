@@ -12,61 +12,86 @@ type NFA = Array<NFAElement>
 let u = 0
 
 let createNFAElement = () => {
-    return <NFAElement>{
+    return Object.freeze({
         state: Symbol(u++),
         action: null,
         next: []
-    }
+    })
 }
 
 let vocabulary = (action: string) => {
     let start = createNFAElement()
     let next = createNFAElement()
-    start.action = action
-    start.next.push(next.state)
-    return [start, next]
+    console.log(action)
+    return <NFA>[
+        {
+            state: start.state,
+            action: action,
+            next: [next.state]
+        },
+        next
+    ]
 }
 
 let catenation = (nfa1: NFA, nfa2: NFA) => {
-    let terminalElement = nfa1[nfa1.length - 1]
-    let startElement = nfa2[0]
-
-    terminalElement.action = ""
-    terminalElement.next.push(startElement.state)
-
-    return [...nfa1, ...nfa2]
+    return [
+        ...nfa1.slice(0, -1),
+        {
+            state: nfa1.slice(-1)[0].state,
+            action: "",
+            next: [
+                ...nfa1.slice(-1)[0].next,
+                nfa2[0].state
+            ]
+        },
+        ...nfa2
+    ]
 }
 
 let alternation = (nfa1: NFA, nfa2: NFA) => {
     let startElement = createNFAElement()
-    startElement.action = ""
-    startElement.next.push(nfa1[0].state)
-    startElement.next.push(nfa2[0].state)
-
     let endElement = createNFAElement()
 
-    nfa1[nfa1.length - 1].action = ""
-    nfa1[nfa1.length - 1].next.push(endElement.state)
-
-    nfa2[nfa2.length - 1].action = ""
-    nfa2[nfa2.length - 1].next.push(endElement.state)
-
-    return [startElement, ...nfa1, ...nfa2, endElement]
+    return [
+        {
+            state: startElement.state,
+            action: "",
+            next: [nfa1[0].state, nfa2[0].state]
+        },
+        ...nfa1.slice(0, -1),
+        {
+            state: nfa1.slice(-1)[0].state,
+            action: "",
+            next: [...nfa1.slice(-1)[0].next, endElement.state]
+        },
+        ...nfa2.slice(0, -1),
+        {
+            state: nfa2.slice(-1)[0].state,
+            action: "",
+            next: [...nfa2.slice(-1)[0].next, endElement.state]
+        },
+        endElement
+    ]
 }
 
 let kleene = (nfa: NFA) => {
     let startElement = createNFAElement()
     let endElement = createNFAElement()
 
-    startElement.action = ""
-    startElement.next.push(nfa[0].state)
-    startElement.next.push(endElement.state)
-
-    nfa[nfa.length - 1].action = ""
-    nfa[nfa.length - 1].next.push(nfa[0].state)
-    nfa[nfa.length - 1].next.push(endElement.state)
-
-    return [startElement, ...nfa, endElement]
+    return [
+        {
+            state: startElement.state,
+            action: "",
+            next: [nfa[0].state, endElement.state]
+        },
+        ...nfa.slice(0, -1),
+        {
+            state: nfa.slice(-1)[0].state,
+            action: "",
+            next: [...nfa.slice(-1)[0].next, nfa[0].state, endElement.state]
+        },
+        endElement
+    ]
 }
 
 let regParser = (reg: string[]) => {
@@ -75,14 +100,6 @@ let regParser = (reg: string[]) => {
     let left = 0
     for (let n = 0; n < reg.length; n++) {
         switch (reg[n]) {
-            case "*": {
-                if (left == 0) {
-                    subnfas.push(kleene(subnfas.pop()))
-                } else {
-                    subreg.push("*")
-                }
-                break
-            }
             case "(": {
                 left += 1
                 break
@@ -90,7 +107,15 @@ let regParser = (reg: string[]) => {
             case ")": {
                 left -= 1
                 if (left == 0) {
-                    subnfas.push(regParser(subreg))
+                    subnfas = [...subnfas, regParser(subreg)]
+                }
+                break
+            }
+            case "*": {
+                if (left == 0) {
+                    subnfas = [...subnfas.slice(0, -1), kleene(subnfas.slice(-1)[0])]
+                } else {
+                    subreg = [...subreg, "*"]
                 }
                 break
             }
@@ -108,16 +133,16 @@ let regParser = (reg: string[]) => {
                         )
                     ]
                 } else {
-                    subreg.push("|")
+                    subreg = [...subreg, "|"]
                 }
 
                 break
             }
             default: {
                 if (left == 0) {
-                    subnfas.push(vocabulary(reg[n]))
+                    subnfas = [...subnfas, vocabulary(reg[n])]
                 } else {
-                    subreg.push(reg[n])
+                    subreg = [...subreg, reg[n]]
                 }
                 break
             }
