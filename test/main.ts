@@ -11,141 +11,181 @@ type NFA = Array<NFAElement>
 
 let u = 0
 
-let createNFAElement = () => {
+function* uuid(u) {
+    while (true) {
+        yield Symbol(u)
+        u += 1
+    }
+}
+
+let u_ = uuid(0)
+
+let genState = () => {
+    return <Symbol>u_.next().value
+}
+
+let _createNFAElement = (state: Symbol, action: string, next: Array<Symbol>) => {
     return Object.freeze({
-        state: Symbol(u++),
-        action: null,
-        next: []
+        state: state,
+        action: action,
+        next: next,
     })
 }
 
 let vocabulary = (action: string) => {
-    let start = createNFAElement()
-    let next = createNFAElement()
-    console.log(action)
+    let start = genState()
+    let next = genState()
+
     return <NFA>[
-        {
-            state: start.state,
-            action: action,
-            next: [next.state]
-        },
-        next
+        _createNFAElement(
+            start,
+            action,
+            [next],
+        ),
+        _createNFAElement(
+            next,
+            null,
+            [],
+        ),
     ]
 }
 
 let catenation = (nfa1: NFA, nfa2: NFA) => {
     return [
         ...nfa1.slice(0, -1),
-        {
-            state: nfa1.slice(-1)[0].state,
-            action: "",
-            next: [
+        _createNFAElement(
+            nfa1.slice(-1)[0].state,
+            "",
+            [
                 ...nfa1.slice(-1)[0].next,
                 nfa2[0].state
-            ]
-        },
-        ...nfa2
+            ],
+        ),
+        ...nfa2,
     ]
 }
 
 let alternation = (nfa1: NFA, nfa2: NFA) => {
-    let startElement = createNFAElement()
-    let endElement = createNFAElement()
+    let start = genState()
+    let end = genState()
 
     return [
-        {
-            state: startElement.state,
-            action: "",
-            next: [nfa1[0].state, nfa2[0].state]
-        },
+        _createNFAElement(
+            start,
+            "",
+            [nfa1[0].state, nfa2[0].state],
+        ),
         ...nfa1.slice(0, -1),
-        {
-            state: nfa1.slice(-1)[0].state,
-            action: "",
-            next: [...nfa1.slice(-1)[0].next, endElement.state]
-        },
+        _createNFAElement(
+            nfa1.slice(-1)[0].state,
+            "",
+            [...nfa1.slice(-1)[0].next, end],
+        ),
         ...nfa2.slice(0, -1),
-        {
-            state: nfa2.slice(-1)[0].state,
-            action: "",
-            next: [...nfa2.slice(-1)[0].next, endElement.state]
-        },
-        endElement
+        _createNFAElement(
+            nfa2.slice(-1)[0].state,
+            "",
+            [...nfa2.slice(-1)[0].next, end],
+        ),
+        _createNFAElement(
+            end,
+            null,
+            [],
+        ),
     ]
 }
 
 let kleene = (nfa: NFA) => {
-    let startElement = createNFAElement()
-    let endElement = createNFAElement()
+    let start = genState()
+    let end = genState()
 
     return [
-        {
-            state: startElement.state,
-            action: "",
-            next: [nfa[0].state, endElement.state]
-        },
+        _createNFAElement(
+            start,
+            "",
+            [nfa[0].state, end],
+        ),
         ...nfa.slice(0, -1),
-        {
-            state: nfa.slice(-1)[0].state,
-            action: "",
-            next: [...nfa.slice(-1)[0].next, nfa[0].state, endElement.state]
-        },
-        endElement
+        _createNFAElement(
+            nfa.slice(-1)[0].state,
+            "",
+            [...nfa.slice(-1)[0].next, nfa[0].state, end],
+        ),
+        _createNFAElement(
+            end,
+            null,
+            [],
+        ),
     ]
 }
 
-let regParser = (reg: string[]) => {
+let rp = (reg: string[]) => {
     let subnfas: Array<NFA> = []
     let subreg: Array<string> = []
     let left = 0
+    let escapeMode: boolean = false
+
     for (let n = 0; n < reg.length; n++) {
-        switch (reg[n]) {
-            case "(": {
-                left += 1
-                break
-            }
-            case ")": {
-                left -= 1
-                if (left == 0) {
-                    subnfas = [...subnfas, regParser(subreg)]
+        if (!escapeMode) {
+            switch (reg[n]) {
+                case "\\": {
+                    escapeMode = true
+                    break
                 }
-                break
-            }
-            case "*": {
-                if (left == 0) {
-                    subnfas = [...subnfas.slice(0, -1), kleene(subnfas.slice(-1)[0])]
-                } else {
-                    subreg = [...subreg, "*"]
+                case "(": {
+                    left += 1
+                    break
                 }
-                break
-            }
-            case "|": {
-                if (left == 0) {
-                    subreg = reg.slice(n + 1)
-                    n += subreg.length
+                case ")": {
+                    left -= 1
+                    if (left == 0) {
+                        subnfas = [...subnfas, rp(subreg)]
+                    }
+                    break
+                }
+                case "*": {
+                    if (left == 0) {
+                        subnfas = [...subnfas.slice(0, -1), kleene(subnfas.slice(-1)[0])]
+                    } else {
+                        subreg = [...subreg, "*"]
+                    }
+                    break
+                }
+                case "|": {
+                    if (left == 0) {
+                        subreg = reg.slice(n + 1)
+                        n += subreg.length
 
-                    subnfas = [
-                        alternation(
-                            subnfas.slice(1).reduce((prev, curr) => {
-                                return catenation(prev, curr)
-                            }, subnfas[0]),
-                            regParser(subreg)
-                        )
-                    ]
-                } else {
-                    subreg = [...subreg, "|"]
-                }
+                        subnfas = [
+                            alternation(
+                                subnfas.slice(1).reduce((prev, curr) => {
+                                    return catenation(prev, curr)
+                                }, subnfas[0]),
+                                rp(subreg)
+                            )
+                        ]
+                    } else {
+                        subreg = [...subreg, "|"]
+                    }
 
-                break
-            }
-            default: {
-                if (left == 0) {
-                    subnfas = [...subnfas, vocabulary(reg[n])]
-                } else {
-                    subreg = [...subreg, reg[n]]
+                    break
                 }
-                break
+                default: {
+                    if (left == 0) {
+                        subnfas = [...subnfas, vocabulary(reg[n])]
+                    } else {
+                        subreg = [...subreg, reg[n]]
+                    }
+                    break
+                }
             }
+        } else {
+            if (left == 0) {
+                subnfas = [...subnfas, vocabulary(reg[n])]
+            } else {
+                subreg = [...subreg, reg[n]]
+            }
+            escapeMode = false
         }
     }
 
@@ -154,5 +194,8 @@ let regParser = (reg: string[]) => {
     }, subnfas[0])
 }
 
+let regParser = (reg: RegExp) => {
+    return rp(reg.toString().split("").slice(1, -1))
+}
 
-console.log(regParser("as(b*|f)g".split("")))
+console.log(regParser(/as(b*|f)g/))
