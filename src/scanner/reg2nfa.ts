@@ -21,7 +21,7 @@ let genState = () => {
     return <Symbol>u_.next().value
 }
 
-let _createNFAElement = (state: Symbol, action: string, next: Array<Symbol>) => {
+let createNFAElement = (state: Symbol, action: string, next: Array<Symbol>) => {
     return Object.freeze({
         state: state,
         action: action,
@@ -34,12 +34,12 @@ let vocabulary = (action: string) => {
     let next = genState()
 
     return <NFA>[
-        _createNFAElement(
+        createNFAElement(
             start,
             action,
             [next],
         ),
-        _createNFAElement(
+        createNFAElement(
             next,
             null,
             [],
@@ -50,7 +50,7 @@ let vocabulary = (action: string) => {
 let catenation = (nfa1: NFA, nfa2: NFA) => {
     return [
         ...nfa1.slice(0, -1),
-        _createNFAElement(
+        createNFAElement(
             nfa1.slice(-1)[0].state,
             "",
             [
@@ -67,24 +67,24 @@ let alternation = (nfa1: NFA, nfa2: NFA) => {
     let end = genState()
 
     return [
-        _createNFAElement(
+        createNFAElement(
             start,
             "",
             [nfa1[0].state, nfa2[0].state],
         ),
         ...nfa1.slice(0, -1),
-        _createNFAElement(
+        createNFAElement(
             nfa1.slice(-1)[0].state,
             "",
             [...nfa1.slice(-1)[0].next, end],
         ),
         ...nfa2.slice(0, -1),
-        _createNFAElement(
+        createNFAElement(
             nfa2.slice(-1)[0].state,
             "",
             [...nfa2.slice(-1)[0].next, end],
         ),
-        _createNFAElement(
+        createNFAElement(
             end,
             null,
             [],
@@ -97,18 +97,18 @@ let kleene = (nfa: NFA) => {
     let end = genState()
 
     return [
-        _createNFAElement(
+        createNFAElement(
             start,
             "",
             [nfa[0].state, end],
         ),
         ...nfa.slice(0, -1),
-        _createNFAElement(
+        createNFAElement(
             nfa.slice(-1)[0].state,
             "",
             [...nfa.slice(-1)[0].next, nfa[0].state, end],
         ),
-        _createNFAElement(
+        createNFAElement(
             end,
             null,
             [],
