@@ -48,7 +48,7 @@ let vocabulary = (action: string) => {
 }
 
 let catenation = (nfa1: NFA, nfa2: NFA) => {
-    return [
+    return <NFA>[
         ...nfa1.slice(0, -1),
         createNFAElement(
             nfa1.slice(-1)[0].state,
@@ -66,7 +66,7 @@ let alternation = (nfa1: NFA, nfa2: NFA) => {
     let start = genState()
     let end = genState()
 
-    return [
+    return <NFA>[
         createNFAElement(
             start,
             "",
@@ -96,7 +96,7 @@ let kleene = (nfa: NFA) => {
     let start = genState()
     let end = genState()
 
-    return [
+    return <NFA>[
         createNFAElement(
             start,
             "",
