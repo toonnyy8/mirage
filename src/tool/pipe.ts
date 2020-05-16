@@ -1,13 +1,16 @@
+// Thanks to jcalz's answer on stackoverflow 
+// https://stackoverflow.com/questions/53173203/typescript-recursive-function-composition?answertab=votes#tab-top
+
 type Lookup<T, K extends keyof any, Else = never> = K extends keyof T ? T[K] : Else
 
 type Tail<T extends any[]> =
     ((...t: T) => void) extends ((x: any, ...u: infer U) => void) ? U : never
 
-type Func1 = (arg: any) => any;
+type Func = (arg: any) => any;
 
 type ArgType<F, Else = never> = F extends (arg: infer A) => any ? A : Else
 
-type AsChain<F extends [Func1, ...Func1[]], G extends Func1[] = Tail<F>> =
+type AsChain<F extends [Func, ...Func[]], G extends Func[] = Tail<F>> =
     { [K in keyof F]: (arg: ArgType<F[K]>) => ArgType<Lookup<G, K, any>, any> }
 
 type LastIndexOf<T extends any[]> =
