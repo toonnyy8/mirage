@@ -1,6 +1,8 @@
 import { regParser } from "./reg2nfa"
 import { f3 } from "./nfa2dfa"
+import { pipe } from "../tool"
 
-export const scanner = (reg: RegExp) => {
-    return f3(regParser(reg))
-} 
+export const scanner = pipe(
+    regParser,
+    f3
+) 
