@@ -1,7 +1,6 @@
-import { regParser } from "./scanner/reg2nfa"
-import { f3 } from "./scanner/nfa2dfa"
+import { scanner } from "./scanner"
 
 
-let dfa = f3(regParser(/as(b*|f)g/))
-// let dfa = f3(regParser(/b*(bc)/))
+let dfa = scanner(/as(b*|f)g/)
+// let dfa = scanner(/b*(bc)/)
 console.log(dfa)
