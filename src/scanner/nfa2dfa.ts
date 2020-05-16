@@ -3,33 +3,33 @@ import { NFA } from "./reg2nfa"
 export interface DFAElement {
     state: number,
     type: string
-    links: { [action: string]: number }
+    actions: { [action: string]: number }
 }
 
 export type DFA = Array<DFAElement>
 
-let f = (nfa: NFA, mapTable: {}, startSet: Array<Symbol>): [Array<number>, { [action: string]: Array<Symbol> }] => {
+let resolveSubSet = (nfa: NFA, mapTable: {}, startSet: Array<Symbol>):
+    [Array<number>, { [action: string]: Array<Symbol> }] => {
 
-    let s1: Array<Symbol> = [...startSet]
-    let s2: Array<number> = []
+    let unresolvedSet: Array<Symbol> = [...startSet]
+    let resolvedSet: Array<number> = []
     let links: { [action: string]: Array<Symbol> } = {}
 
-
     do {
-        let s = mapTable[<symbol>s1.pop()]
-        if (nfa[s].action == "") {
-            s1.push(...nfa[s].next)
-        } else if (nfa[s].action != null) {
-            links[nfa[s].action] = links[nfa[s].action] || []
-            links[nfa[s].action] = [...links[nfa[s].action], ...nfa[s].next]
+        let state = mapTable[<symbol>unresolvedSet.pop()]
+        if (nfa[state].action == "") {
+            unresolvedSet.push(...nfa[state].next)
+        } else if (nfa[state].action != null) {
+            links[nfa[state].action] = links[nfa[state].action] || []
+            links[nfa[state].action] = [...links[nfa[state].action], ...nfa[state].next]
         }
-        s2.push(s)
-    } while (s1.length != 0)
+        resolvedSet.push(state)
+    } while (unresolvedSet.length != 0)
 
-    s2.sort((a, b) => {
+    resolvedSet.sort((a, b) => {
         return a < b ? -1 : a > b ? 1 : 0
     })
-    return [s2, links]
+    return [resolvedSet, links]
 }
 
 let setEq = (setA: Array<number>, setB: Array<number>) => {
@@ -48,33 +48,33 @@ let f3 = (nfa: NFA) => {
         return { ...prev, [<symbol>curr.state]: idx }
     }, {})
 
-    let sets = []
+    let resolvedSets = []
     let dfa: DFA = []
 
-    let f2 = (startSet: Array<Symbol>) => {
-        let [s, links] = f(nfa, mapTable, startSet)
-        let state = sets.findIndex((v) => {
-            return setEq(s, v)
+    let f2 = (startSet: Array<Symbol>, mapTable: {}) => {
+        let [resolvedSet, links] = resolveSubSet(nfa, mapTable, startSet)
+        let state = resolvedSets.findIndex((v) => {
+            return setEq(resolvedSet, v)
         })
-        let _links: { [action: string]: number } = {}
+        let resolvedLinks: { [action: string]: number } = {}
         if (state == -1) {
-            state = sets.push(s) - 1
+            state = resolvedSets.push(resolvedSet) - 1
             Object.keys(links).forEach(key => {
-                _links[key] = f2(links[key])
-                f2(links[key])
+                resolvedLinks[key] = f2(links[key], mapTable)
+                f2(links[key], mapTable)
             })
 
             dfa[state] = (Object.freeze({
                 state: state,
-                type: s[0] == 0 ? "entrance" : s[s.length - 1] == nfa.length - 1 ? "exit" : "",
-                links: _links
+                type: resolvedSet[0] == 0 ? "entrance" : resolvedSet.slice(-1)[0] == nfa.length - 1 ? "exit" : "",
+                actions: resolvedLinks
             }))
         }
 
         return state
     }
 
-    f2([nfa[0].state])
+    f2([nfa[0].state], mapTable)
 
     return dfa
 }
