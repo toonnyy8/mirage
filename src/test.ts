@@ -1,25 +1,15 @@
-type Lookup<T, K extends keyof any, Else = never> = K extends keyof T ? T[K] : Else
+import R = require('ramda')
 
-type Tail<T extends any[]> =
-    ((...t: T) => void) extends ((x: any, ...u: infer U) => void) ? U : never
+const inputA = [{ x: 1 }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 }]
 
-type Func1 = (arg: any) => any;
+const f = (a: number) => R.propEq('x')(a)
 
-type ArgType<F, Else = never> = F extends (arg: infer A) => any ? A : Else
+const g1 = R.filter(f(5))
 
-type AsChain<F extends [Func1, ...Func1[]], G extends Func1[] = Tail<F>> =
-    { [K in keyof F]: (arg: ArgType<F[K]>) => ArgType<Lookup<G, K, any>, any> }
-
-type LastIndexOf<T extends any[]> =
-    ((...x: T) => void) extends ((y: any, ...z: infer U) => void)
-    ? U['length'] : never
-
-declare function flow<F extends [(arg: any) => any, ...Array<(arg: any) => any>]>(
-    ...f: F & AsChain<F>
-): (arg: ArgType<F[0]>) => ReturnType<F[LastIndexOf<F>]>;
-
-let f = flow(
-    (a: number) => { },
-    () => [1].map(v => v + 1)
-)
-f
+const g2 = R.pipe(f,
+    <(
+        fn: (obj: Record<"x", number>) => boolean
+    ) =>
+        (a: Array<Record<"x", number>>) => { x: number }[]
+    >R.filter
+)(5)(inputA)
