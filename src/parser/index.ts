@@ -16,6 +16,7 @@ interface BNFAelem {
     state: number,
     shift: { [action: string]: number }
     reduce: { [action: string]: number }
+    accept: boolean
 }
 
 type BNFA = Array<BNFAelem>
@@ -95,11 +96,6 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
     let bnfaSS: BNFAstateStack = [unfold([genBNFAunit(enter, 0)], bnfs)]
     let bnfaSS_: BNFAstateStack = []
     let bnfa: BNFA = []
-    let bnfaElem: BNFAelem = {
-        state: bnfaSS.length - 1,
-        shift: {},
-        reduce: {}
-    }
 
     let f = () => {
 
@@ -109,12 +105,14 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
                 last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] || []
 
                 last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = [...last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]], genBNFAunit(bnfaUnit.bnfrule, bnfaUnit.at + 1, bnfaUnit.LA)]
-            } else {
+            } else if (bnfaUnit.LA != undefined) {
                 last.reduce[bnfaUnit.LA] = bnfaUnit.bnfrule
+            } else {
+                last.accept = true
             }
-            console.log(last)
+            // console.log(last)
             return last
-        }, <{ shift: { [action: string]: BNFAstate }, reduce: { [action: string]: number } }>{ shift: {}, reduce: {} })
+        }, <{ shift: { [action: string]: BNFAstate }, reduce: { [action: string]: number }, accept: boolean }>{ shift: {}, reduce: {} })
 
         let ix = bnfaSS_.findIndex((bnfaS_) => eq(bnfaS_, bnfaSS[0]))
         if (ix == -1) {
@@ -124,7 +122,8 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
         let bnfaElem: BNFAelem = {
             state: ix,
             shift: {},
-            reduce: {}
+            reduce: {},
+            accept: false,
         }
 
         if (Object.keys(a.shift).length != 0) {
@@ -145,6 +144,7 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
         } else {
             bnfaSS = bnfaSS.slice(1)
         }
+        bnfaElem.accept = a.accept == true
         bnfaElem.reduce = a.reduce
         bnfa = [...bnfa, bnfaElem]
         return bnfaSS.length == 0 ? bnfaSS_ : f()
