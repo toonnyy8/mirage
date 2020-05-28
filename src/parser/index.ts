@@ -80,19 +80,6 @@ let unfold = (bnfaUnit: Array<BNFAunit>, bnfs: Array<BNFelem>) => {
     return stack
 }
 
-console.log(
-    unfold([genBNFAunit(1, 2, "$"), genBNFAunit(1, 2, "+")], [
-        genBNF("S", ["E", "$"]),
-        genBNF("E", ["E", "+", "T"]),
-        genBNF("E", ["T"]),
-        genBNF("T", ["T", "*", "P"]),
-        genBNF("T", ["P"]),
-        genBNF("P", ["id"]),
-        genBNF("P", ["(", "E", ")"]),
-    ])
-)
-
-
 let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
     let eq = (A: BNFAstate, B: BNFAstate) => {
         if (A.length == B.length) {
@@ -103,27 +90,61 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
         }
         return false
     }
+    // let bnfaSS: BNFAstateStack = [unfold([genBNFAunit(6, 1, ")"), genBNFAunit(6, 1, "+"), genBNFAunit(6, 1, "*")], bnfs)]
     let bnfaSS: BNFAstateStack = [unfold([genBNFAunit(enter, 0)], bnfs)]
+    let bnfaSS_: BNFAstateStack = []
+    let bnfa: BNFA = []
     let bnfaElem: BNFAelem = {
         state: bnfaSS.length - 1,
         actions: {}
     }
 
-    let a = bnfaSS[bnfaElem.state].reduce((last, bnfaUnit) => {
-        last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] || []
-        last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = [...last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]], genBNFAunit(bnfaUnit.bnfrule, bnfaUnit.at + 1, bnfaUnit.LA)]
-        return last
-    }, <{ [action: string]: BNFAstate }>{})
+    let f = () => {
 
-    console.log(
-        Object.keys(a)
-            .map((key) => unfold(a[key], bnfs))
-            .reduce((last, bnfaS) => {
-                if (last.find((bnfaS_) => eq(bnfaS_, bnfaS)) == undefined)
-                    return [...last, bnfaS]
-                return last
-            }, bnfaSS)
-    )
+
+        let a = bnfaSS[0].reduce((last, bnfaUnit) => {
+            if (bnfs[bnfaUnit.bnfrule].expression.length > bnfaUnit.at) {
+                last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] || []
+
+                last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = [...last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]], genBNFAunit(bnfaUnit.bnfrule, bnfaUnit.at + 1, bnfaUnit.LA)]
+            }
+            return last
+        }, <{ [action: string]: BNFAstate }>{})
+
+        let ix = bnfaSS_.findIndex((bnfaS_) => eq(bnfaS_, bnfaSS[0]))
+        if (ix == -1) {
+            bnfaSS_ = [...bnfaSS_, bnfaSS[0]]
+            ix = bnfaSS_.length
+        }
+        let bnfaElem: BNFAelem = {
+            state: ix,
+            actions: {}
+        }
+
+        if (Object.keys(a).length != 0) {
+            // console.log(a)
+            bnfaSS = Object.keys(a)
+                .map((key) => {
+                    return { key: key, bnfaS: unfold(a[key], bnfs) }
+                })
+                .reduce((last, v) => {
+                    let i = bnfaSS_.findIndex((bnfaS_) => eq(bnfaS_, v.bnfaS))
+                    if (i == -1) {
+                        bnfaElem.actions[v.key] = last.length
+                        return [...last, v.bnfaS]
+                    }
+                    bnfaElem.actions[v.key] = i
+                    return last
+                }, bnfaSS.slice(1))
+        } else {
+            bnfaSS = bnfaSS.slice(1)
+        }
+        bnfa = [...bnfa, bnfaElem]
+        return bnfaSS.length == 0 ? bnfaSS_ : f()
+    }
+    f()
+    console.log(bnfa)
+    console.log(bnfaSS_)
 }
 p([
     genBNF("S", ["E", "$"]),
