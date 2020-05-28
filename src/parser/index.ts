@@ -14,7 +14,8 @@ interface SymbolTable {
 
 interface BNFAelem {
     state: number,
-    actions: { [action: string]: number }
+    shift: { [action: string]: number }
+    reduce: { [action: string]: number }
 }
 
 type BNFA = Array<BNFAelem>
@@ -96,7 +97,8 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
     let bnfa: BNFA = []
     let bnfaElem: BNFAelem = {
         state: bnfaSS.length - 1,
-        actions: {}
+        shift: {},
+        reduce: {}
     }
 
     let f = () => {
@@ -104,12 +106,15 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
 
         let a = bnfaSS[0].reduce((last, bnfaUnit) => {
             if (bnfs[bnfaUnit.bnfrule].expression.length > bnfaUnit.at) {
-                last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] || []
+                last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] || []
 
-                last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = [...last[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]], genBNFAunit(bnfaUnit.bnfrule, bnfaUnit.at + 1, bnfaUnit.LA)]
+                last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]] = [...last.shift[bnfs[bnfaUnit.bnfrule].expression[bnfaUnit.at]], genBNFAunit(bnfaUnit.bnfrule, bnfaUnit.at + 1, bnfaUnit.LA)]
+            } else {
+                last.reduce[bnfaUnit.LA] = bnfaUnit.bnfrule
             }
+            console.log(last)
             return last
-        }, <{ [action: string]: BNFAstate }>{})
+        }, <{ shift: { [action: string]: BNFAstate }, reduce: { [action: string]: number } }>{ shift: {}, reduce: {} })
 
         let ix = bnfaSS_.findIndex((bnfaS_) => eq(bnfaS_, bnfaSS[0]))
         if (ix == -1) {
@@ -118,27 +123,29 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
         }
         let bnfaElem: BNFAelem = {
             state: ix,
-            actions: {}
+            shift: {},
+            reduce: {}
         }
 
-        if (Object.keys(a).length != 0) {
+        if (Object.keys(a.shift).length != 0) {
             // console.log(a)
-            bnfaSS = Object.keys(a)
+            bnfaSS = Object.keys(a.shift)
                 .map((key) => {
-                    return { key: key, bnfaS: unfold(a[key], bnfs) }
+                    return { key: key, bnfaS: unfold(a.shift[key], bnfs) }
                 })
-                .reduce((last, v) => {
+                .reduce((last, v, idx) => {
                     let i = bnfaSS_.findIndex((bnfaS_) => eq(bnfaS_, v.bnfaS))
                     if (i == -1) {
-                        bnfaElem.actions[v.key] = last.length
+                        bnfaElem.shift[v.key] = bnfaSS_.length + idx
                         return [...last, v.bnfaS]
                     }
-                    bnfaElem.actions[v.key] = i
+                    bnfaElem.shift[v.key] = i
                     return last
                 }, bnfaSS.slice(1))
         } else {
             bnfaSS = bnfaSS.slice(1)
         }
+        bnfaElem.reduce = a.reduce
         bnfa = [...bnfa, bnfaElem]
         return bnfaSS.length == 0 ? bnfaSS_ : f()
     }
