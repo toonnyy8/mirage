@@ -137,6 +137,7 @@ let rp = (reg: string[]) => {
                     left -= 1
                     if (left == 0) {
                         subnfas = [...subnfas, rp(subreg)]
+                        subreg = []
                     }
                     break
                 }
@@ -161,6 +162,7 @@ let rp = (reg: string[]) => {
                                 rp(subreg)
                             )
                         ]
+                        subreg = []
                     } else {
                         subreg = [...subreg, "|"]
                     }

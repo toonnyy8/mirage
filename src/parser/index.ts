@@ -150,19 +150,21 @@ let p = (bnfs: Array<BNFelem>, enter: number = 0) => {
         return bnfaSS.length == 0 ? bnfaSS_ : f()
     }
     f()
-    console.log(bnfa)
-    console.log(bnfaSS_)
+    // console.log(bnfa)
+    // console.log(bnfaSS_)
+    return bnfa
 }
-p([
-    genBNF("S", ["E", "$"]),
-    genBNF("E", ["E", "+", "T"]),
-    genBNF("E", ["T"]),
-    genBNF("T", ["T", "*", "P"]),
-    genBNF("T", ["P"]),
-    genBNF("P", ["id"]),
-    genBNF("P", ["(", "E", ")"]),
-])
-
+console.log(
+    p([
+        genBNF("S", ["E", "$"]),
+        genBNF("E", ["E", "+", "T"]),
+        genBNF("E", ["T"]),
+        genBNF("T", ["T", "*", "P"]),
+        genBNF("T", ["P"]),
+        genBNF("P", ["id"]),
+        genBNF("P", ["(", "E", ")"]),
+    ])
+)
 let parser = (symbolTable: SymbolTable, bnfs: Array<BNFelem>) => {
 
 }

@@ -22,13 +22,12 @@
   },
   "homepage": "https://github.com/toonnyy8/Mirage#readme",
   "dependencies": {
-    "@types/ramda": "^0.27.5",
-    "core-js": "^3.6.1",
+    "core-js": "^3.6.5",
     "immutable": "^4.0.0-rc.12",
     "parcel": "^1.12.4",
-    "regenerator-runtime": "^0.13.3"
+    "regenerator-runtime": "^0.13.5"
   },
   "devDependencies": {
-    "typescript": "^3.8.3"
+    "typescript": "^3.9.5"
   }
 }
