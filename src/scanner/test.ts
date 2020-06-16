@@ -1,4 +1,7 @@
+import { regParser } from "./reg2nfa"
 import { genDFA, driver, scanner, Lex } from "./index"
+
+console.log(genDFA(/(a|a)*/))
 
 let source = "asbbbbvgga"
 let rules = [

@@ -10,7 +10,6 @@ export type DFA = Array<DFAElement>
 
 let resolveSubSet = (nfa: NFA, mapTable: {}, startSet: Array<Symbol>):
     [Array<number>, { [action: string]: Array<Symbol> }] => {
-
     let unresolvedSet: Array<Symbol> = [...startSet]
     let resolvedSet: Array<number> = []
     let links: { [action: string]: Array<Symbol> } = {}
@@ -20,8 +19,15 @@ let resolveSubSet = (nfa: NFA, mapTable: {}, startSet: Array<Symbol>):
         if (nfa[state].action == "") {
             unresolvedSet.push(...nfa[state].next)
         } else if (nfa[state].action != null) {
-            links[nfa[state].action] = links[nfa[state].action] || []
-            links[nfa[state].action] = [...links[nfa[state].action], ...nfa[state].next]
+            links[nfa[state].action] = nfa[state].next.reduce((last, nextState) => {
+                if (
+                    last.find(value => nextState == value) == undefined
+                ) {
+                    return [...last, nextState]
+                }
+                return last
+            }, links[nfa[state].action] || [])
+
         }
         resolvedSet.push(state)
     } while (unresolvedSet.length != 0)
@@ -61,12 +67,26 @@ let f3 = (nfa: NFA) => {
             state = resolvedSets.push(resolvedSet) - 1
             Object.keys(links).forEach(key => {
                 resolvedLinks[key] = f2(links[key], mapTable)
-                f2(links[key], mapTable)
+                // f2(links[key], mapTable)
             })
-
+            let type = (resolvedSet: number[]) => {
+                if (resolvedSet[0] == 0) {
+                    if (resolvedSet.slice(-1)[0] == nfa.length - 1) {
+                        return "entrance&exit"
+                    } else {
+                        return "entrance"
+                    }
+                } else {
+                    if (resolvedSet.slice(-1)[0] == nfa.length - 1) {
+                        return "exit"
+                    } else {
+                        return ""
+                    }
+                }
+            }
             dfa[state] = (Object.freeze({
                 state: state,
-                type: resolvedSet[0] == 0 ? "entrance" : resolvedSet.slice(-1)[0] == nfa.length - 1 ? "exit" : "",
+                type: type(resolvedSet),//resolvedSet[0] == 0 ? "entrance" : resolvedSet.slice(-1)[0] == nfa.length - 1 ? "exit" : "",
                 actions: resolvedLinks
             }))
         }
