@@ -1,4 +1,5 @@
-import "./index"
+import "./bnf2cfsm"
+import "./driver"
 // console.log(
 //     parser([
 //         genBNF("S", ["E", "$"]),

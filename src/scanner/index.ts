@@ -70,7 +70,7 @@ export const scanner = (rules: Array<{ type: string, reg: RegExp }>) => {
     }
 }
 
-export function* Lex(source, rules: Array<{ type: string, reg: RegExp }>) {
+export function* Lex(source: string, rules: Array<{ type: string, reg: RegExp }>) {
     let scannerFn = scanner(rules)
     while (true) {
         let token = scannerFn(source)
