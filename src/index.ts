@@ -11,17 +11,17 @@ let r = `(\\))`
 let l = `(\\()`
 let id = new RegExp(`(_|${a2z}|${A2Z})(_|${a2z}|${A2Z}|${digit})*`)
 let int = new RegExp(`${num}`)
-let float = new RegExp(`${num}.${num}`)
+let float = new RegExp(`(${num}.${num})|(${num}.)|(${num})`)
 let assign = new RegExp(`:=`)
 let op1 = /\+|-/
 let op2 = /\*|\//
 let end = /;/
 
-let source = "a:=(b+c)*d;"
+let source = "a:=-c*-2+10.02/(3.45+7);"
 let lex = Lex(
     source,
     [
-        { type: "int", reg: int },
+        // { type: "int", reg: int },
         { type: "float", reg: float },
         { type: "id", reg: id },
         { type: "assign", reg: assign },
@@ -41,6 +41,11 @@ let g = [
     genBNF("<term>", ["<factor>"]),
     genBNF("<term>", ["<term>", "op2", "<factor>"]),
     genBNF("<factor>", ["id"]),
+    genBNF("<factor>", ["int"]),
+    genBNF("<factor>", ["float"]),
+    genBNF("<factor>", ["op1", "id"]),
+    // genBNF("<factor>", ["op1", "int"]),
+    genBNF("<factor>", ["op1", "float"]),
     genBNF("<factor>", ["(", "<exp>", ")"]),
 ]
 
@@ -57,56 +62,111 @@ console.log(syntaxTree)
 
 let grammarFunc = {
     "<section>": (sub: Array<SyntaxNode>) => {
-        let re = sub.map((node) => {
-            if (grammarFunc[node.token.type] != undefined) {
-                return grammarFunc[node.token.type](node.sub)
-            } else {
-                return node.token
-            }
-        })
-        return re
+        let out: string = ""
+        out += grammarFunc[sub[0].token.type](sub[0].sub)
+        out += `call $log\n`
+
+        return out
     },
     "<assign>": (sub: Array<SyntaxNode>) => {
-        let re = sub.map((node) => {
-            if (grammarFunc[node.token.type] != undefined) {
-                return grammarFunc[node.token.type](node.sub)
-            } else {
-                return node.token
-            }
-        })
-        return re
+        let out: string = ""
+        out += grammarFunc[sub[2].token.type](sub[2].sub)
+        out += `set_local $${sub[0].token.value}\n`
+
+        return out
     },
     "<exp>": (sub: Array<SyntaxNode>) => {
-        let re = sub.map((node) => {
-            if (grammarFunc[node.token.type] != undefined) {
-                return grammarFunc[node.token.type](node.sub)
-            } else {
-                return node.token
+        let out: string = ""
+        switch (sub.length) {
+            case 1: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                break
             }
-        })
-        return re
+            case 3: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                switch (sub[1].token.value) {
+                    case "+": {
+                        out += `f32.add\n`
+                        break
+                    }
+                    case "-": {
+                        out += `f32.sub\n`
+                        break
+                    }
+                }
+                break
+            }
+        }
+        return out
     },
     "<term>": (sub: Array<SyntaxNode>) => {
-        let re = sub.map((node) => {
-            if (grammarFunc[node.token.type] != undefined) {
-                return grammarFunc[node.token.type](node.sub)
-            } else {
-                return node.token
+        let out: string = ""
+        switch (sub.length) {
+            case 1: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                break
             }
-        })
-        return re
+            case 3: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                switch (sub[1].token.value) {
+                    case "*": {
+                        out += `f32.mul\n`
+                        break
+                    }
+                    case "/": {
+                        out += `f32.div\n`
+                        break
+                    }
+                }
+                break
+            }
+        }
+        return out
     },
     "<factor>": (sub: Array<SyntaxNode>) => {
-        let re = sub.map((node) => {
-            if (grammarFunc[node.token.type] != undefined) {
-                return grammarFunc[node.token.type](node.sub)
-            } else {
-                return node.token
+        let out: string = ""
+        switch (sub.length) {
+            case 1: {
+                switch (sub[0].token.type) {
+                    case "id": {
+                        out += `get_local $${sub[0].token.value}\n`
+                        break
+                    }
+                    case "float": {
+                        out += `f32.const ${sub[0].token.value}\n`
+                        break
+                    }
+                }
+                break
             }
-        })
-        return re
+            case 2: {
+                switch (sub[1].token.type) {
+                    case "id": {
+                        out += `get_local $${sub[1].token.value}\n`
+                        out += `f32.neg\n`
+                        break
+                    }
+                    case "float": {
+                        out += `f32.const -${sub[1].token.value}\n`
+                        break
+                    }
+                }
+                break
+            }
+            case 3: {
+                out += grammarFunc[sub[1].token.type](sub[1].sub)
+                break
+            }
+        }
+        return out
     },
 }
+
+console.log(
+    source
+)
 console.log(
     grammarFunc[syntaxTree.token.type](syntaxTree.sub)
 )
