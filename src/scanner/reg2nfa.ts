@@ -126,11 +126,20 @@ let rp = (reg: string[]) => {
         if (!escapeMode) {
             switch (reg[n]) {
                 case "\\": {
-                    escapeMode = true
+                    if (left == 0) {
+                        escapeMode = true
+                    } else {
+                        subreg = [...subreg, "\\"]
+                        n += 1
+                        subreg = [...subreg, reg[n]]
+                    }
                     break
                 }
                 case "(": {
                     left += 1
+                    if (left > 1) {
+                        subreg = [...subreg, "("]
+                    }
                     break
                 }
                 case ")": {
@@ -138,6 +147,8 @@ let rp = (reg: string[]) => {
                     if (left == 0) {
                         subnfas = [...subnfas, rp(subreg)]
                         subreg = []
+                    } else {
+                        subreg = [...subreg, ")"]
                     }
                     break
                 }

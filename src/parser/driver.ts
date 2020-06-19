@@ -2,7 +2,7 @@ import { genBNF, Grammar, genGrammar, genCFSM } from "./bnf2cfsm"
 
 interface Token { type: string, value: string }
 
-interface SyntaxNode {
+export interface SyntaxNode {
     token: Token,
     sub: Array<SyntaxNode>
 }
