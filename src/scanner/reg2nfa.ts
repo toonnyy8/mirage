@@ -204,8 +204,8 @@ let rp = (reg: string[]) => {
     }, subnfas[0])
 }
 
-export let regParser = (reg: RegExp) => {
-    return rp(reg.toString().split("").slice(1, -1))
+export let regParser = (reg: string) => {
+    return rp(reg.split(""))
 }
 
 // console.log(regParser(/as(b*|f)g/))

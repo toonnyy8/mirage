@@ -34,7 +34,7 @@ export const driver = (dfa: DFA) => {
     }
 
 }
-export const scanner = (rules: Array<{ type: string, reg: RegExp }>) => {
+export const scanner = (rules: Array<{ type: string, reg: string }>) => {
     let ruleDrivers = rules.map(rule => {
         return pipe(
             genDFA,
@@ -70,7 +70,7 @@ export const scanner = (rules: Array<{ type: string, reg: RegExp }>) => {
     }
 }
 
-export function* Lex(source: string, rules: Array<{ type: string, reg: RegExp }>) {
+export function* Lex(source: string, rules: Array<{ type: string, reg: string }>) {
     let scannerFn = scanner(rules)
     while (true) {
         let token = scannerFn(source)

@@ -1,18 +1,18 @@
-import { genBNF, Grammar, genGrammar, genCFSM } from "./bnf2cfsm"
+import { genBNF, typeGrammar, genGrammar, genCFSM } from "./bnf2cfsm"
 
-interface Token { type: string, value: string }
+export interface typeToken { type: string, value: string }
 
-export interface SyntaxNode {
-    token: Token,
-    sub: Array<SyntaxNode>
+export interface typeSyntaxNode {
+    token: typeToken,
+    sub: Array<typeSyntaxNode>
 }
 
-export const Yacc = (grammar: Grammar, startRule = 0) => {
+export const Yacc = (grammar: typeGrammar, startRule = 0) => {
     let cfsm = genCFSM(grammar, startRule)
     console.log(cfsm)
     let step = [0]
 
-    let syntaxNodeBuffer: Array<SyntaxNode> = []
+    let syntaxNodeBuffer: Array<typeSyntaxNode> = []
     return (token?: { type: string, value: string }) => {
         if (step.length == 0) {
             return syntaxNodeBuffer[0]
@@ -20,7 +20,7 @@ export const Yacc = (grammar: Grammar, startRule = 0) => {
         while (1) {
             let state = step.slice(-1)[0]
             if (cfsm[state].accept) {
-                let syntaxNode: SyntaxNode = {
+                let syntaxNode: typeSyntaxNode = {
                     token: { type: grammar[startRule].symbol, value: null },
                     sub: syntaxNodeBuffer.slice(-grammar[startRule].expression.length),
                 }
@@ -35,7 +35,7 @@ export const Yacc = (grammar: Grammar, startRule = 0) => {
             else if (cfsm[state].reduce[token.type] != undefined) {
                 let rule = cfsm[state].reduce[token.type]
                 step = step.slice(0, -grammar[rule].expression.length)
-                let syntaxNode: SyntaxNode = {
+                let syntaxNode: typeSyntaxNode = {
                     token: { type: grammar[rule].symbol, value: null },
                     sub: syntaxNodeBuffer.slice(-grammar[rule].expression.length),
                 }
@@ -47,7 +47,7 @@ export const Yacc = (grammar: Grammar, startRule = 0) => {
                 step = [...step, cfsm[state].shift[syntaxNode.token.type]]
             }
             else if (cfsm[state].shift[token.type] != undefined) {
-                let syntaxNode: SyntaxNode = {
+                let syntaxNode: typeSyntaxNode = {
                     token: token,
                     sub: null,
                 }
@@ -60,6 +60,8 @@ export const Yacc = (grammar: Grammar, startRule = 0) => {
             }
             else {
                 console.error("ERROR")
+                console.error(state)
+                console.error(token)
                 return
             }
         }
@@ -67,27 +69,3 @@ export const Yacc = (grammar: Grammar, startRule = 0) => {
 }
 
 
-// let g = genGrammar(
-//     genBNF("S", ["E", "$"]),
-//     genBNF("E", ["E", "+", "T"]),
-//     genBNF("E", ["T"]),
-//     genBNF("T", ["T", "*", "P"]),
-//     genBNF("T", ["P"]),
-//     genBNF("P", ["id"]),
-//     genBNF("P", ["(", "E", ")"]),
-// )
-
-// let yacc = Yacc(g)
-// "(id+id)$"
-// let tokens: Array<Token> = [
-//     { type: "(", value: "(" },
-//     { type: "id", value: "id" },
-//     { type: "+", value: "+" },
-//     { type: "id", value: "id" },
-//     { type: ")", value: ")" },
-//     { type: "$", value: "$" },
-// ]
-// tokens.reduce((last, token) => yacc(token), {})
-// console.log(
-//     yacc()
-// )
