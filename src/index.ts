@@ -15,6 +15,7 @@ let op1 = `(+|-)`
 let op2 = `(\\*|/|%)`
 let op3 = `(>|<|==|!=|>=|<=)`
 let op4 = `(&&|\\|\\|)`
+let op5 = `(!)`
 let EOL = `;`
 let EOF = `$`
 let space = `(( |\n|\t)*)`
@@ -48,7 +49,9 @@ let gap = `(${space}|${comment})`
 // $
 // `
 let source = `
-1||2;
+while(-1||2){
+    
+};
 $
 `
 let lex = Lex(
@@ -67,6 +70,7 @@ let lex = Lex(
         { type: "}", reg: `}` },
         { type: "assign", reg: assign },
         { type: "float", reg: float },
+        { type: "op5", reg: op5 },
         { type: "op4", reg: op4 },
         { type: "op3", reg: op3 },
         { type: "op2", reg: op2 },
@@ -115,10 +119,12 @@ let g = [
     genBNF("<Logic>", ["<Factor>"]),
     genBNF("<Logic>", ["<Logic>", "op4", "<Factor>",]),
 
+    genBNF("<Factor>", ["op1", "<Factor>",]),
+    genBNF("<Factor>", ["op5", "<Factor>",]),
     genBNF("<Factor>", ["id",]),
     genBNF("<Factor>", ["float",]),
-    genBNF("<Factor>", ["op1", "id",]),
-    genBNF("<Factor>", ["op1", "float",]),
+    // genBNF("<Factor>", ["op1", "id",]),
+    // genBNF("<Factor>", ["op1", "float",]),
     genBNF("<Factor>", ["(", "<Exp>", ")",]),
 
 ]
@@ -335,9 +341,11 @@ let grammarFunc = {
             }
             case 3: {
                 out += grammarFunc[sub[0].token.type](sub[0].sub)
-                out += `i32.trunc_s/f32\n`
+                out += `f32.const 0\n`
+                out += `f32.ne\n`
                 out += grammarFunc[sub[2].token.type](sub[2].sub)
-                out += `i32.trunc_s/f32\n`
+                out += `f32.const 0\n`
+                out += `f32.ne\n`
                 switch (sub[1].token.value) {
                     case "&&": {
                         out += `i32.and\n`
@@ -371,14 +379,19 @@ let grammarFunc = {
                 break
             }
             case 2: {
-                switch (sub[1].token.type) {
-                    case "id": {
-                        out += `get_local $${sub[1].token.value}\n`
+                out += grammarFunc[sub[1].token.type](sub[1].sub)
+                switch (sub[0].token.value) {
+                    case "+": {
+                        break
+                    }
+                    case "-": {
                         out += `f32.neg\n`
                         break
                     }
-                    case "float": {
-                        out += `f32.const -${sub[1].token.value}\n`
+                    case "!": {
+                        out += `f32.const 0\n`
+                        out += `f32.eq\n`
+                        out += `f32.convert_u/i32\n`
                         break
                     }
                 }
