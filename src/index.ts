@@ -13,7 +13,8 @@ let float = `(${num}.${num})|(${num}.)|(${num})`
 let assign = `(:=)`
 let op1 = `(+|-)`
 let op2 = `(\\*|/|%)`
-let op3 = `(>|<|==|>=|<=)`
+let op3 = `(>|<|==|!=|>=|<=)`
+let op4 = `(&&|\\|\\|)`
 let EOL = `;`
 let EOF = `$`
 let space = `(( |\n|\t)*)`
@@ -21,29 +22,33 @@ let all = `(${a2z}|${A2Z}|${digit}|+|-|\\*|/|(\\\\)|(\\|)|!|@|#|$|%|^|&|(\\()|(\
 let comment = `(//${all}*)`
 let gap = `(${space}|${comment})`
 
+// let source = `
+// a := b+c /10;//asd
+// //asd
+
+// b :=  c 
+// //asd
+// ; ;
+// c+-10;
+// if(12-12){
+//     x:=178.55;
+// }else if(9){
+//     if(1){
+//         1;
+//     }else if(2){
+
+//     }else{
+
+//     }
+// }else if(2){
+
+// }else if(3){
+
+// }
+// $
+// `
 let source = `
-a := b+c /10;//asd
-//asd
-    
-b :=  c 
-//asd
-; ;
-c+-10;
-if(12-12){
-    x:=178.55;
-}else if(9){
-    if(1){
-        1;
-    }else if(2){
-
-    }else{
-
-    }
-}else if(2){
-
-}else if(3){
-
-}
+1||2;
 $
 `
 let lex = Lex(
@@ -52,6 +57,8 @@ let lex = Lex(
         { type: "gap", reg: gap },
         { type: "if", reg: `if` },
         { type: "else", reg: `else` },
+        { type: "for", reg: `for` },
+        { type: "while", reg: `while` },
         { type: "EOL", reg: EOL },
         { type: "EOF", reg: EOF },
         { type: "(", reg: `\\(` },
@@ -60,6 +67,7 @@ let lex = Lex(
         { type: "}", reg: `}` },
         { type: "assign", reg: assign },
         { type: "float", reg: float },
+        { type: "op4", reg: op4 },
         { type: "op3", reg: op3 },
         { type: "op2", reg: op2 },
         { type: "op1", reg: op1 },
@@ -78,6 +86,7 @@ let g = [
     genBNF("<Section>", ["<Exp>", "EOL",]),
     genBNF("<Section>", ["EOL"]),
     genBNF("<Section>", ["<If>",]),
+    genBNF("<Section>", ["<While>",]),
 
     genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "<Sections>", "}",]),
     genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "<Sections>", "}", "else", "{", "}",]),
@@ -88,14 +97,23 @@ let g = [
     genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "}", "else", "<If>",]),
     genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "}", "else", "{", "<Sections>", "}",]),
 
+    genBNF("<While>", ["while", "(", "<Exp>", ")", "{", "<Sections>", "}",]),
+    genBNF("<While>", ["while", "(", "<Exp>", ")", "{", "}",]),
+
     // 賦值
     genBNF("<Assign>", ["id", "assign", "<Exp>",]),
 
     genBNF("<Exp>", ["<Term>",]),
     genBNF("<Exp>", ["<Exp>", "op1", "<Term>",]),
 
-    genBNF("<Term>", ["<Factor>"]),
-    genBNF("<Term>", ["<Term>", "op2", "<Factor>",]),
+    genBNF("<Term>", ["<Compare>"]),
+    genBNF("<Term>", ["<Term>", "op2", "<Compare>",]),
+
+    genBNF("<Compare>", ["<Logic>"]),
+    genBNF("<Compare>", ["<Compare>", "op3", "<Logic>",]),
+
+    genBNF("<Logic>", ["<Factor>"]),
+    genBNF("<Logic>", ["<Logic>", "op4", "<Factor>",]),
 
     genBNF("<Factor>", ["id",]),
     genBNF("<Factor>", ["float",]),
@@ -143,6 +161,10 @@ let grammarFunc = {
                         out += grammarFunc[sub[0].token.type](sub[0].sub)
                         break
                     }
+                    case "<While>": {
+                        out += grammarFunc[sub[0].token.type](sub[0].sub)
+                        break
+                    }
                 }
                 break
             }
@@ -170,7 +192,6 @@ let grammarFunc = {
         if (sub[5].token.type == "<Sections>") {
             out += grammarFunc[sub[5].token.type](sub[5].sub)
             if (sub[7]) {
-                console.warn("else")
                 out += `else\n`
                 if (sub[8].token.type == "<If>") {
                     out += grammarFunc[sub[8].token.type](sub[8].sub)
@@ -180,7 +201,6 @@ let grammarFunc = {
             }
         } else {
             if (sub[6]) {
-                console.warn("else")
                 out += `else\n`
                 if (sub[7].token.type == "<If>") {
                     out += grammarFunc[sub[7].token.type](sub[7].sub)
@@ -189,6 +209,20 @@ let grammarFunc = {
                 }
             }
         }
+        out += `end\n`
+
+        return out
+    },
+    "<While>": (sub: Array<typeSyntaxNode>) => {
+        let out: string = ""
+        out += `loop\n`
+        out += grammarFunc[sub[2].token.type](sub[2].sub)
+        out += `if\n`
+        if (sub[5].token.type == "<Sections>") {
+            out += grammarFunc[sub[5].token.type](sub[5].sub)
+        }
+        out += `br 0\n`
+        out += `end\n`
         out += `end\n`
 
         return out
@@ -245,6 +279,76 @@ let grammarFunc = {
                         break
                     }
                 }
+                break
+            }
+        }
+        return out
+    },
+    "<Compare>": (sub: Array<typeSyntaxNode>) => {
+        let out: string = ""
+        switch (sub.length) {
+            case 1: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                break
+            }
+            case 3: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                switch (sub[1].token.value) {
+                    case ">": {
+                        out += `f32.gt\n`
+                        break
+                    }
+                    case "<": {
+                        out += `f32.lt\n`
+                        break
+                    }
+                    case "==": {
+                        out += `f32.eq\n`
+                        break
+                    }
+                    case "!=": {
+                        out += `f32.ne\n`
+                        break
+                    }
+                    case ">=": {
+                        out += `f32.ge\n`
+                        break
+                    }
+                    case "<=": {
+                        out += `f32.le\n`
+                        break
+                    }
+                }
+                out += `f32.convert_u/i32\n`
+                break
+            }
+        }
+        return out
+    },
+    "<Logic>": (sub: Array<typeSyntaxNode>) => {
+        let out: string = ""
+        switch (sub.length) {
+            case 1: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                break
+            }
+            case 3: {
+                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += `i32.trunc_s/f32\n`
+                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                out += `i32.trunc_s/f32\n`
+                switch (sub[1].token.value) {
+                    case "&&": {
+                        out += `i32.and\n`
+                        break
+                    }
+                    case "||": {
+                        out += `i32.and\n`
+                        break
+                    }
+                }
+                out += `f32.convert_u/i32\n`
                 break
             }
         }
