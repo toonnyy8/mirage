@@ -23,26 +23,83 @@ let comment = `(//${all}*)`
 let gap = `(${space}|${comment})`
 
 let source =
-    `a as kl$`
+    ` a := b+c /10;//asd
+
+    //asd
+    
+     b :=  c 
+     //asd
+     ; ;
+    c+-10;
+    $`
 let lex = Lex(
     source,
     [
+        { type: "assign", reg: assign },
         { type: "id", reg: id },
-        // { type: "EOL", reg: EOL },
+        { type: "EOL", reg: EOL },
         { type: "EOF", reg: EOF },
-        // { type: "space", reg: space },
-        // { type: "comment", reg: comment },
         { type: "gap", reg: gap },
+
+        { type: "float", reg: float },
+        { type: "op1", reg: op1 },
+        { type: "op2", reg: op2 },
+        { type: "(", reg: l },
+        { type: ")", reg: r },
     ],
 )
 
 let g = [
-    genBNF("<S>", ["<S1>", "EOF"]),
-    genBNF("<S1>", ["gap", "<section>"]),
-    genBNF("<S1>", ["<section>"]),
-    genBNF("<section>", ["<section>", "<section>"]),
-    genBNF("<section>", ["<section>", "gap", "<section>"]),
-    genBNF("<section>", ["id"]),
+    // 主結構解析
+    genBNF("<Start>", ["<Program>", "EOF",]),
+    genBNF("<Program>", ["<gaps>", "<Sections>",]),
+    genBNF("<program>", ["<Sections>",]),
+    genBNF("<Sections>", ["<Sections>", "<Section>",]),
+    genBNF("<Sections>", ["<Section>",]),
+    genBNF("<Section>", ["<Assign>", "<EOL>",]),
+    genBNF("<Section>", ["<Exp>", "<EOL>",]),
+    genBNF("<Section>", ["<EOL>"]),
+    // 賦值
+    genBNF("<Assign>", ["<id>", "<assign>", "<Exp>",]),
+
+    genBNF("<Exp>", ["<Term>",]),
+    genBNF("<Exp>", ["<Exp>", "<op1>", "<Term>",]),
+
+    genBNF("<Term>", ["<Factor>"]),
+    genBNF("<Term>", ["<Term>", "<op2>", "<Factor>",]),
+
+    genBNF("<Factor>", ["<id>",]),
+    genBNF("<Factor>", ["<float>",]),
+    genBNF("<Factor>", ["<op1>", "<id>",]),
+    genBNF("<Factor>", ["<op1>", "<float>",]),
+    genBNF("<Factor>", ["<(>", "<Exp>", "<)>",]),
+
+    genBNF("<gaps>", ["<gaps>", "gap",]),
+    genBNF("<gaps>", ["gap",]),
+
+    genBNF("<id>", ["id", "<gaps>",]),
+    genBNF("<id>", ["id",]),
+
+    genBNF("<assign>", ["assign", "<gaps>",]),
+    genBNF("<assign>", ["assign",]),
+
+    genBNF("<EOL>", ["EOL",]),
+    genBNF("<EOL>", ["EOL", "<gaps>",]),
+
+    genBNF("<op1>", ["op1",]),
+    genBNF("<op1>", ["op1", "<gaps>",]),
+
+    genBNF("<op2>", ["op2",]),
+    genBNF("<op2>", ["op2", "<gaps>",]),
+
+    genBNF("<float>", ["float",]),
+    genBNF("<float>", ["float", "<gaps>",]),
+
+    genBNF("<(>", ["(",]),
+    genBNF("<(>", ["(", "<gaps>",]),
+
+    genBNF("<)>", [")",]),
+    genBNF("<)>", [")", "<gaps>",]),
 ]
 
 let yacc = Yacc(g)
