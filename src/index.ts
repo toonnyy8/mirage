@@ -194,6 +194,8 @@ let grammarFunc = {
     "<If>": (sub: Array<typeSyntaxNode>) => {
         let out: string = ""
         out += grammarFunc[sub[2].token.type](sub[2].sub)
+        out += `f32.const 0\n`
+        out += `f32.ne\n`
         out += `if\n`
         if (sub[5].token.type == "<Sections>") {
             out += grammarFunc[sub[5].token.type](sub[5].sub)
@@ -223,11 +225,13 @@ let grammarFunc = {
         let out: string = ""
         out += `loop\n`
         out += grammarFunc[sub[2].token.type](sub[2].sub)
+        out += `f32.const 0\n`
+        out += `f32.ne\n`
         out += `if\n`
         if (sub[5].token.type == "<Sections>") {
             out += grammarFunc[sub[5].token.type](sub[5].sub)
         }
-        out += `br 0\n`
+        out += `br 1\n`
         out += `end\n`
         out += `end\n`
 
