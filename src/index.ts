@@ -31,6 +31,18 @@ b :=  c
 c+-10;
 if(12-12){
     x:=178.55;
+}else if(9){
+    if(1){
+        1;
+    }else if(2){
+
+    }else{
+
+    }
+}else if(2){
+
+}else if(3){
+
 }
 $
 `
@@ -39,6 +51,7 @@ let lex = Lex(
     [
         { type: "gap", reg: gap },
         { type: "if", reg: `if` },
+        { type: "else", reg: `else` },
         { type: "EOL", reg: EOL },
         { type: "EOF", reg: EOF },
         { type: "(", reg: `\\(` },
@@ -64,10 +77,17 @@ let g = [
     genBNF("<Section>", ["<Assign>", "EOL",]),
     genBNF("<Section>", ["<Exp>", "EOL",]),
     genBNF("<Section>", ["EOL"]),
-    genBNF("<Section>", ["<If>"]),
+    genBNF("<Section>", ["<If>",]),
 
     genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "<Sections>", "}",]),
+    genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "<Sections>", "}", "else", "{", "}",]),
+    genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "<Sections>", "}", "else", "<If>",]),
+    genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "<Sections>", "}", "else", "{", "<Sections>", "}",]),
     genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "}",]),
+    genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "}", "else", "{", "}",]),
+    genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "}", "else", "<If>",]),
+    genBNF("<If>", ["if", "(", "<Exp>", ")", "{", "}", "else", "{", "<Sections>", "}",]),
+
     // 賦值
     genBNF("<Assign>", ["id", "assign", "<Exp>",]),
 
@@ -127,10 +147,16 @@ let grammarFunc = {
                 break
             }
             case 2: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
-                if (sub[0].token.type == "<Exp>") {
-                    out += `drop\n`
+                switch (sub[0].token.type) {
+                    default: {
+                        out += grammarFunc[sub[0].token.type](sub[0].sub)
+                        if (sub[0].token.type == "<Exp>") {
+                            out += `drop\n`
+                        }
+                        break
+                    }
                 }
+
                 break
             }
         }
@@ -143,6 +169,25 @@ let grammarFunc = {
         out += `if\n`
         if (sub[5].token.type == "<Sections>") {
             out += grammarFunc[sub[5].token.type](sub[5].sub)
+            if (sub[7]) {
+                console.warn("else")
+                out += `else\n`
+                if (sub[8].token.type == "<If>") {
+                    out += grammarFunc[sub[8].token.type](sub[8].sub)
+                } else if (sub[9].token.type == "<Sections>") {
+                    out += grammarFunc[sub[9].token.type](sub[9].sub)
+                }
+            }
+        } else {
+            if (sub[6]) {
+                console.warn("else")
+                out += `else\n`
+                if (sub[7].token.type == "<If>") {
+                    out += grammarFunc[sub[7].token.type](sub[7].sub)
+                } else if (sub[8].token.type == "<Sections>") {
+                    out += grammarFunc[sub[8].token.type](sub[8].sub)
+                }
+            }
         }
         out += `end\n`
 
