@@ -48,42 +48,31 @@ let gap = `(${space}|${comment})`
 // }
 // $
 // `
-let source = `
-let a = (b,c)=>{
-    a=1;
-    return a;
-};
-$
-`
-let lex = Lex(
-    source,
-    [
-        { type: "gap", reg: gap },
-        { type: "return", reg: `return` },
-        { type: "let", reg: `let` },
-        { type: "if", reg: `if` },
-        { type: "else", reg: `else` },
-        { type: "for", reg: `for` },
-        { type: "while", reg: `while` },
-        { type: "EOL", reg: EOL },
-        { type: "EOF", reg: EOF },
-        { type: ",", reg: `,` },
-        { type: "(", reg: `\\(` },
-        { type: ")", reg: `\\)` },
-        { type: "{", reg: `{` },
-        { type: "}", reg: `}` },
-        { type: "=>", reg: `=>` },
-        { type: "assign", reg: assign },
-        { type: "float", reg: float },
-        { type: "op5", reg: op5 },
-        { type: "op4", reg: op4 },
-        { type: "op3", reg: op3 },
-        { type: "op2", reg: op2 },
-        { type: "op1", reg: op1 },
-        { type: "id", reg: id },
-    ],
-)
-
+let rules = [
+    { type: "gap", reg: gap },
+    { type: "return", reg: `return` },
+    { type: "let", reg: `let` },
+    { type: "if", reg: `if` },
+    { type: "else", reg: `else` },
+    { type: "for", reg: `for` },
+    { type: "while", reg: `while` },
+    { type: "EOL", reg: EOL },
+    { type: "EOF", reg: EOF },
+    { type: ",", reg: `,` },
+    { type: "(", reg: `\\(` },
+    { type: ")", reg: `\\)` },
+    { type: "{", reg: `{` },
+    { type: "}", reg: `}` },
+    { type: "=>", reg: `=>` },
+    { type: "assign", reg: assign },
+    { type: "float", reg: float },
+    { type: "op5", reg: op5 },
+    { type: "op4", reg: op4 },
+    { type: "op3", reg: op3 },
+    { type: "op2", reg: op2 },
+    { type: "op1", reg: op1 },
+    { type: "id", reg: id },
+]
 let g = [
     // 主結構解析
     genBNF("<Program>", ["<Sections>", "EOF",]),
@@ -123,8 +112,8 @@ let g = [
     // 參數集
     genBNF("<Args>", ["id",]),
     genBNF("<Args>", ["id", ",", "<Args>",]),
-    genBNF("<Args>", ["<Assign>",]),
-    genBNF("<Args>", ["<Assign>", ",", "<Args>",]),
+    // genBNF("<Args>", ["<Assign>",]),
+    // genBNF("<Args>", ["<Assign>", ",", "<Args>",]),
     // 宣告
     genBNF("<Declares>", ["let", "<Declare>",]),
     // 參數集
@@ -157,23 +146,7 @@ let g = [
 
 ]
 
-let yacc = Yacc(g)
 
-let token: { type: string, value: string }
-do {
-    token = <typeof token>lex.next().value
-    if (token && token.type != "gap") {
-        console.log(token)
-        console.log(yacc(token))
-    }
-} while (token != null)
-
-let syntaxTree = yacc()
-console.log(syntaxTree)
-
-let varTable: Array<{ [name: string]: { type: "float" | "func", isArgs: boolean } }> = [{}]
-let funcScope: Array<number> = []
-let funcCode: Array<string> = []
 interface typeVariable {
     name: string,
     type: "float" | typeFuncTypes,
@@ -195,49 +168,56 @@ let genFuncType = (params: Array<typeVariable>, result: typeVariable = null,): t
     }
 }
 interface typeFunc {
-    scope: Array<number>,
+    scope: number,
     funcType: typeFuncTypes,
-    vars: Array<typeVariable>,
     code: string,
 }
-let genFunc = (scope: Array<number>, funcType: typeFuncTypes, vars: Array<typeVariable> = [], code: string = "",): typeFunc => {
+let genFunc = (scope: number, funcType: typeFuncTypes, code: string = "",): typeFunc => {
     return {
         scope,
         funcType,
-        vars,
         code,
     }
 }
 let funcs: Array<typeFunc>
+interface typeScope {
+    atScopes: Array<number>,
+    vars: Array<typeVariable>
+    atFunc: number
+}
+let genScope = (atScopes: Array<number>, vars: Array<typeVariable>, atFunc: number = null): typeScope => ({ atScopes, vars, atFunc })
+let scopes: Array<typeScope>
 let grammarFunc = {
     "<Program>": (sub: Array<typeSyntaxNode>) => {
-        funcs = [genFunc([0], genFuncType([]))]
-        varTable = [{}]
-        funcScope = [0]
+        let atScope = 0
+        funcs = []
+        scopes = [genScope([atScope], [])]
+
         let out: string = ""
-        out += grammarFunc[sub[0].token.type](sub[0].sub)
-        funcCode[0] = out
+        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
         return out
     },
-    "<Sections>": (sub: Array<typeSyntaxNode>) => {
+    "<Sections>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         out = sub.reduce((out, node) => {
-            out += grammarFunc[node.token.type](node.sub)
+            out += grammarFunc[node.token.type](node.sub, atScope)
             return out
         }, out)
         return out
     },
-    "<Section>": (sub: Array<typeSyntaxNode>) => {
+    "<Section>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         switch (sub.length) {
             case 1: {
                 switch (sub[0].token.type) {
                     case "<If>": {
-                        out += grammarFunc[sub[0].token.type](sub[0].sub)
+                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                         break
                     }
                     case "<While>": {
-                        out += grammarFunc[sub[0].token.type](sub[0].sub)
+                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                         break
                     }
                 }
@@ -246,7 +226,7 @@ let grammarFunc = {
             case 2: {
                 switch (sub[0].token.type) {
                     default: {
-                        out += grammarFunc[sub[0].token.type](sub[0].sub)
+                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                         if (sub[0].token.type == "<Exp>") {
                             out += `drop\n`
                         }
@@ -260,29 +240,35 @@ let grammarFunc = {
 
         return out
     },
-    "<If>": (sub: Array<typeSyntaxNode>) => {
+    "<If>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scopes.length
+        scopes = [...scopes, genScope([atScope, ...scopes[scope].atScopes,], [], scopes[scope].atFunc,)]
         let out: string = ""
         out += grammarFunc[sub[2].token.type](sub[2].sub)
         out += `f32.const 0\n`
         out += `f32.ne\n`
         out += `if\n`
         if (sub[5].token.type == "<Sections>") {
-            out += grammarFunc[sub[5].token.type](sub[5].sub)
+            out += grammarFunc[sub[5].token.type](sub[5].sub, atScope)
             if (sub[7]) {
                 out += `else\n`
                 if (sub[8].token.type == "<If>") {
-                    out += grammarFunc[sub[8].token.type](sub[8].sub)
+                    out += grammarFunc[sub[8].token.type](sub[8].sub, scope)
                 } else if (sub[9].token.type == "<Sections>") {
-                    out += grammarFunc[sub[9].token.type](sub[9].sub)
+                    let atScope = scopes.length
+                    scopes = [...scopes, genScope([atScope, ...scopes[scope].atScopes,], [], scopes[scope].atFunc,)]
+                    out += grammarFunc[sub[9].token.type](sub[9].sub, atScope)
                 }
             }
         } else {
             if (sub[6]) {
                 out += `else\n`
                 if (sub[7].token.type == "<If>") {
-                    out += grammarFunc[sub[7].token.type](sub[7].sub)
+                    out += grammarFunc[sub[7].token.type](sub[7].sub, scope)
                 } else if (sub[8].token.type == "<Sections>") {
-                    out += grammarFunc[sub[8].token.type](sub[8].sub)
+                    let atScope = scopes.length
+                    scopes = [...scopes, genScope([atScope, ...scopes[scope].atScopes,], [], scopes[scope].atFunc,)]
+                    out += grammarFunc[sub[8].token.type](sub[8].sub, atScope)
                 }
             }
         }
@@ -290,7 +276,9 @@ let grammarFunc = {
 
         return out
     },
-    "<While>": (sub: Array<typeSyntaxNode>) => {
+    "<While>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scopes.length
+        scopes = [...scopes, genScope([atScope, ...scopes[scope].atScopes,], [], scopes[scope].atFunc,)]
         let out: string = ""
         out += `loop\n`
         out += grammarFunc[sub[2].token.type](sub[2].sub)
@@ -298,7 +286,7 @@ let grammarFunc = {
         out += `f32.ne\n`
         out += `if\n`
         if (sub[5].token.type == "<Sections>") {
-            out += grammarFunc[sub[5].token.type](sub[5].sub)
+            out += grammarFunc[sub[5].token.type](sub[5].sub, atScope)
         }
         out += `br 1\n`
         out += `end\n`
@@ -306,135 +294,164 @@ let grammarFunc = {
 
         return out
     },
-    "<Func>": (sub: Array<typeSyntaxNode>) => {
+    "<Func>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scopes.length
+        let atFunc = funcs.length
+        scopes = [...scopes, genScope([atScope], [], atFunc)]
+        funcs = [...funcs, genFunc(atScope, genFuncType([]), "")]
         let head: string = ""
-        let args: string = ""
+        let params: string = ""
         let variables: string = ""
         let main: string = ""
-        let func: typeFunc
-        varTable = [...varTable, {}]
-        funcScope = [...funcScope, varTable.length - 1]
 
-        head += `func $f${varTable.length - 1}`
+        head += `func $f${atFunc}`
         if (sub[1].token.type == "<Args>") {
-            grammarFunc[sub[1].token.type](sub[1].sub)
+            grammarFunc[sub[1].token.type](sub[1].sub, atFunc)
             if (sub[5].token.type == "<Sections>") {
-                main += grammarFunc[sub[5].token.type](sub[5].sub)
+                main += grammarFunc[sub[5].token.type](sub[5].sub, atScope)
             }
         } else {
             if (sub[4].token.type == "<Sections>") {
-                main += grammarFunc[sub[4].token.type](sub[4].sub)
+                main += grammarFunc[sub[4].token.type](sub[4].sub, atScope)
             }
         }
-        let vt = varTable[funcScope.slice(-1)[0]]
-        args += Object.keys(vt)
-            .reduce((args, name) => {
-                if (vt[name].isArgs == true) {
-                    switch (vt[name].type) {
-                        case "float": {
-                            args += ` (param $${name} f32)`
-                            break
-                        }
-                        case "func": {
-                            break
-                        }
-                    }
-                }
-                return args
-            }, args)
-        variables += Object.keys(vt)
-            .reduce((variables, name) => {
-                if (vt[name].isArgs == false) {
-                    switch (vt[name].type) {
-                        case "float": {
-                            variables += ` (local $${name} f32)`
-                            break
-                        }
-                        case "func": {
-                            break
-                        }
-                    }
-                }
-                return variables
-            }, variables)
-        funcCode[funcScope.slice(-1)[0]] = `(${head}\n${args}\n${variables}\n${main})\n`
-        funcScope = funcScope.slice(0, -1)
+        params += funcs[atFunc]
+            .funcType
+            .params
+            .reduce((paramCode, param) => {
+                return `${paramCode} (param $${param.name} f32)`
+            }, "")
+
+        variables += scopes
+            .filter((scope) => {
+                return atScope == scope.atScopes[scope.atScopes.length - 1]
+            })
+            .reduce((variableCode, scope) => {
+                return scope
+                    .vars
+                    .reduce((variableCode, variable) => {
+                        return `${variableCode} (local $${variable.name}${scope.atScopes[0]} f32)`
+                    }, variableCode)
+            }, "")
+
+        funcs[atFunc].code = `(${head}\n${params}\n${variables}\n${main})\n`
         return ""
     },
-    "<Args>": (sub: Array<typeSyntaxNode>) => {
+    "<Args>": (sub: Array<typeSyntaxNode>, atFunc: number) => {
         let out: string = ""
 
         switch (sub[0].token.type) {
             case "id": {
-                varTable[funcScope.slice(-1)[0]][sub[0].token.value] = { type: "float", isArgs: true }
+                funcs[atFunc].funcType.params = [...funcs[atFunc].funcType.params, { name: sub[0].token.value, type: "float" }]
                 break
             }
-            case "<Assign>": {
-                if (sub[0].sub[2].token.type == "<Func>") {
-                    varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value] = { type: "func", isArgs: true }
-                } else {
-                    varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value] = { type: "float", isArgs: true }
-                }
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
-                break
-            }
+            // case "<Assign>": {
+            //     if (sub[0].sub[2].token.type == "<Func>") {
+            //         varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value] = { type: "func", isArgs: true }
+            //     } else {
+            //         varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value] = { type: "float", isArgs: true }
+            //     }
+            //     out += grammarFunc[sub[0].token.type](sub[0].sub)
+            //     break
+            // }
         }
         if (sub.length == 3) {
-            out += grammarFunc[sub[2].token.type](sub[2].sub)
+            out += grammarFunc[sub[2].token.type](sub[2].sub, atFunc)
         }
         return out
     },
-    "<Return>": (sub: Array<typeSyntaxNode>) => {
+    "<Return>": (sub: Array<typeSyntaxNode>, scope: number) => {
 
     },
-    "<Declares>": (sub: Array<typeSyntaxNode>) => {
+    "<Declares>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
-        out += grammarFunc[sub[1].token.type](sub[1].sub)
+        out += grammarFunc[sub[1].token.type](sub[1].sub, atScope)
         return out
     },
-    "<Declare>": (sub: Array<typeSyntaxNode>) => {
+    "<Declare>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
-
         switch (sub[0].token.type) {
             case "id": {
-                if (varTable[funcScope.slice(-1)[0]][sub[0].token.value]) console.error(`${sub[0].token.value} repeat declaration`)
-                varTable[funcScope.slice(-1)[0]][sub[0].token.value] = { type: "float", isArgs: false }
+                let varAtParam = scopes[atScope].atFunc != null ?
+                    funcs[scopes[atScope].atFunc]
+                        .funcType
+                        .params
+                        .find(param => param.name == sub[0].token.value) :
+                    undefined
+                if (scopes[atScope].atScopes.length == 1 && varAtParam != undefined) {
+                    console.error(`${sub[0].token.value} repeat declaration`)
+                } else if (scopes[atScope].vars.find((variable) => variable.name == sub[0].token.value) != undefined) {
+                    console.error(`${sub[0].token.value} repeat declaration`)
+                } else {
+                    scopes[atScope].vars = [...scopes[atScope].vars, genVariable(sub[0].token.value, "float")]
+                }
                 break
             }
             case "<Assign>": {
-                if (varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value]) console.error(`${sub[0].sub[0].token.value} repeat declaration`)
-                if (sub[0].sub[2].token.type == "<Func>") {
-                    varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value] = { type: "func", isArgs: false }
+                let varAtParam = scopes[atScope].atFunc != null ?
+                    funcs[scopes[atScope].atFunc]
+                        .funcType
+                        .params
+                        .find(param => param.name == sub[0].sub[0].token.value) :
+                    undefined
+                if (scopes[atScope].atScopes.length == 1 && varAtParam != undefined) {
+                    console.error(`${sub[0].sub[0].token.value} repeat declaration`)
+                } else if (scopes[atScope].vars.find((variable) => variable.name == sub[0].sub[0].token.value) != undefined) {
+                    console.error(`${sub[0].sub[0].token.value} repeat declaration`)
+                } else if (sub[0].sub[2].token.type == "<Func>") {
+                    // scopes[atScope].vars = [...scopes[atScope].vars, genVariable(sub[0].sub[0].token.value, "float")]
                 } else {
-                    varTable[funcScope.slice(-1)[0]][sub[0].sub[0].token.value] = { type: "float", isArgs: false }
+                    scopes[atScope].vars = [...scopes[atScope].vars, genVariable(sub[0].sub[0].token.value, "float")]
                 }
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                 break
             }
         }
         if (sub.length == 3) {
-            out += grammarFunc[sub[2].token.type](sub[2].sub)
+            out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
         }
         return out
     },
-    "<Assign>": (sub: Array<typeSyntaxNode>) => {
+    "<Assign>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
-        if (varTable[funcScope.slice(-1)[0]][sub[0].token.value] == undefined) console.error(`${sub[0].token.value} is undefined`)
-        out += grammarFunc[sub[2].token.type](sub[2].sub)
-        out += `set_local $${sub[0].token.value}\n`
+        let varAtParam = scopes[atScope].atFunc != null ?
+            funcs[scopes[atScope].atFunc]
+                .funcType
+                .params
+                .find(param => param.name == sub[0].token.value) :
+            undefined
+        let varAtScope = scopes[atScope]
+            .atScopes
+            .find((at) => {
+                return scopes[at].vars.find(variable => variable.name == sub[0].token.value) != undefined
+            })
+        out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
+        if (varAtScope != undefined) {
+            out += `set_local $${sub[0].token.value}${varAtScope}\n`
+        } else if (varAtParam != undefined) {
+            out += `set_local $${sub[0].token.value}\n`
+        } else {
+            console.error(`${sub[0].token.value} is undefined`)
+        }
+        // out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
+
 
         return out
     },
-    "<Exp>": (sub: Array<typeSyntaxNode>) => {
+    "<Exp>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         switch (sub.length) {
             case 1: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                 break
             }
             case 3: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
-                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
+                out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
                 switch (sub[1].token.value) {
                     case "+": {
                         out += `f32.add\n`
@@ -450,16 +467,17 @@ let grammarFunc = {
         }
         return out
     },
-    "<Term>": (sub: Array<typeSyntaxNode>) => {
+    "<Term>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         switch (sub.length) {
             case 1: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                 break
             }
             case 3: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
-                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
+                out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
                 switch (sub[1].token.value) {
                     case "*": {
                         out += `f32.mul\n`
@@ -475,16 +493,17 @@ let grammarFunc = {
         }
         return out
     },
-    "<Compare>": (sub: Array<typeSyntaxNode>) => {
+    "<Compare>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         switch (sub.length) {
             case 1: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                 break
             }
             case 3: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
-                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
+                out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
                 switch (sub[1].token.value) {
                     case ">": {
                         out += `f32.gt\n`
@@ -517,18 +536,19 @@ let grammarFunc = {
         }
         return out
     },
-    "<Logic>": (sub: Array<typeSyntaxNode>) => {
+    "<Logic>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         switch (sub.length) {
             case 1: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                 break
             }
             case 3: {
-                out += grammarFunc[sub[0].token.type](sub[0].sub)
+                out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
                 out += `f32.const 0\n`
                 out += `f32.ne\n`
-                out += grammarFunc[sub[2].token.type](sub[2].sub)
+                out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
                 out += `f32.const 0\n`
                 out += `f32.ne\n`
                 switch (sub[1].token.value) {
@@ -547,14 +567,31 @@ let grammarFunc = {
         }
         return out
     },
-    "<Factor>": (sub: Array<typeSyntaxNode>) => {
+    "<Factor>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let atScope = scope
         let out: string = ""
         switch (sub.length) {
             case 1: {
                 switch (sub[0].token.type) {
                     case "id": {
-                        if (varTable[funcScope.slice(-1)[0]][sub[0].token.value] == undefined) console.error(`${sub[0].token.value} is undefined`)
-                        out += `get_local $${sub[0].token.value}\n`
+                        let varAtScope = scopes[atScope]
+                            .atScopes
+                            .find((at) => {
+                                return scopes[at].vars.find(variable => variable.name == sub[0].token.value) != undefined
+                            })
+                        let varAtParam = scopes[atScope].atFunc != null ?
+                            funcs[scopes[atScope].atFunc]
+                                .funcType
+                                .params
+                                .find(param => param.name == sub[0].token.value) :
+                            undefined
+                        if (varAtScope != undefined) {
+                            out += `get_local $${sub[0].token.value}${varAtScope}\n`
+                        } else if (varAtParam != undefined) {
+                            out += `get_local $${sub[0].token.value}\n`
+                        } else {
+                            console.error(`${sub[0].token.value} is undefined`)
+                        }
                         break
                     }
                     case "float": {
@@ -592,6 +629,42 @@ let grammarFunc = {
     },
 }
 
+
+let source = `
+let a=0;
+let b=1;
+let f=(a,b)=>{
+    while(1){
+        let a=0;
+        a+b;
+    }
+};
+while(1){
+    let a;
+    a;
+    b;
+}
+$
+`
+let lex = Lex(
+    source,
+    rules,
+)
+
+let yacc = Yacc(g)
+
+let token: { type: string, value: string }
+do {
+    token = <typeof token>lex.next().value
+    if (token && token.type != "gap") {
+        console.log(token)
+        console.log(yacc(token))
+    }
+} while (token != null)
+
+let syntaxTree = yacc()
+console.log(syntaxTree)
+
 console.log(
     source
 )
@@ -599,11 +672,8 @@ console.log(
     grammarFunc[syntaxTree.token.type](syntaxTree.sub)
 )
 console.log(
-    varTable
+    funcs
 )
 console.log(
-    funcScope
-)
-console.log(
-    funcCode
+    scopes
 )
