@@ -195,6 +195,12 @@ let grammarFunc = {
 
         let out: string = ""
         out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
+        out = `(module
+    (table $tb ${funcs.length} anyfunc)
+    ${funcs.reduce((funcCode, func) => `${funcCode}${func.code}`, "")}
+    (elem (i32.const 0) ${funcs.reduce((funcName, func, idx) => `${funcName} $f${idx}`, "")})
+    (func $main\n${out})
+)`
         return out
     },
     "<Sections>": (sub: Array<typeSyntaxNode>, scope: number) => {
@@ -319,7 +325,7 @@ let grammarFunc = {
             .funcType
             .params
             .reduce((paramCode, param) => {
-                return `${paramCode} (param $${param.name} f32)`
+                return `${paramCode} (param $var_${param.name} f32)`
             }, "")
 
         variables += scopes
@@ -330,7 +336,7 @@ let grammarFunc = {
                 return scope
                     .vars
                     .reduce((variableCode, variable) => {
-                        return `${variableCode} (local $${variable.name}${scope.atScopes[0]} f32)`
+                        return `${variableCode} (local $var_${variable.name}${scope.atScopes[0]} f32)`
                     }, variableCode)
             }, "")
 
@@ -430,9 +436,9 @@ let grammarFunc = {
             })
         out += grammarFunc[sub[2].token.type](sub[2].sub, atScope)
         if (varAtScope != undefined) {
-            out += `set_local $${sub[0].token.value}${varAtScope}\n`
+            out += `set_local $var_${sub[0].token.value}${varAtScope}\n`
         } else if (varAtParam != undefined) {
-            out += `set_local $${sub[0].token.value}\n`
+            out += `set_local $var_${sub[0].token.value}\n`
         } else {
             console.error(`${sub[0].token.value} is undefined`)
         }
@@ -586,9 +592,9 @@ let grammarFunc = {
                                 .find(param => param.name == sub[0].token.value) :
                             undefined
                         if (varAtScope != undefined) {
-                            out += `get_local $${sub[0].token.value}${varAtScope}\n`
+                            out += `get_local $var_${sub[0].token.value}${varAtScope}\n`
                         } else if (varAtParam != undefined) {
-                            out += `get_local $${sub[0].token.value}\n`
+                            out += `get_local $var_${sub[0].token.value}\n`
                         } else {
                             console.error(`${sub[0].token.value} is undefined`)
                         }
