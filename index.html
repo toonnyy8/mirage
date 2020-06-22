@@ -2,10 +2,34 @@
 <html>
 
 <head>
-    <!-- <script src="./src/index.ts"></script>
-    <script src="./src/test.ts"></script> -->
-    <script src="./src/compiler.ts"></script>
+    <script src="./src/index.ts" defer></script>
+    <!-- <script src="./src/test.ts"></script> -->
+    <!-- <script src="./src/compiler.ts"></script> -->
     <!-- <script src="./src/download.ts"></script> -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap');
+
+        section {
+            font-family: 'Source Code Pro', 'Noto Sans TC', sans-serif;
+        }
+    </style>
 </head>
+
+<body>
+    <textarea id="sourceCode" cols="50" rows="25">let fib=(n) =>{
+    if((n==0)||(n==1)){
+        return n;
+    }
+    return self(n - 1)+self(n - 2);
+};
+log(fib(10));
+$
+</textarea>
+    <br /><br />
+    <button id="startCompile">compile</button>
+    <br /><br />
+    <div id="log"></div>
+</body>
 
 </html>
