@@ -142,8 +142,8 @@ export let grammar = [
     genBNF("<Id>", ["id",]),
 
 ]
-export let ruleDFAs = rules.map(rule => genDFA(rule.reg))
-export let cfsm = genCFSM(grammar, 0)
+// export let ruleDFAs = rules.map(rule => genDFA(rule.reg))
+// export let cfsm = genCFSM(grammar, 0)
 
 export const download = () => {
     let filename = 'language.ts';

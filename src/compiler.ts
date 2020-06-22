@@ -1,6 +1,6 @@
 import { rules, grammar, codeGenerator } from "./mirgae"
-import { ruleDFAs, cfsm } from "./mirgae"
-// import { ruleDFAs, cfsm } from "./language"
+// import { ruleDFAs, cfsm } from "./mirgae"
+import { ruleDFAs, cfsm } from "./language"
 import { Lex_ } from "./scanner"
 import { Yacc } from "./parser"
 import wabt_ from "./wabt"
