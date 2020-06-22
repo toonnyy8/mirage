@@ -22,6 +22,7 @@ let gap = `(${space}|${comment})`
 
 export let rules = [
     { type: "gap", reg: gap },
+    { type: "self", reg: `self` },
     { type: "return", reg: `return` },
     { type: "let", reg: `let` },
     { type: "if", reg: `if` },
@@ -33,6 +34,7 @@ export let rules = [
     { type: "EOF", reg: EOF },
     { type: ",", reg: `,` },
     { type: "(", reg: `\\(` },
+    { type: ")=>", reg: `\\)${space}=>` },
     { type: ")", reg: `\\)` },
     { type: "{", reg: `{` },
     { type: "}", reg: `}` },
@@ -78,12 +80,13 @@ export let grammar = [
     genBNF("<While>", ["while", "(", "<Exp>", ")", "{", "<Sections>", "}",]),
     genBNF("<While>", ["while", "(", "<Exp>", ")", "{", "}",]),
     // 函式
-    genBNF("<Func>", ["(", ")", "=>", "{", "}",]),
-    genBNF("<Func>", ["(", ")", "=>", "{", "<Sections>", "}",]),
-    genBNF("<Func>", ["(", "<Params>", ")", "=>", "{", "}",]),
-    genBNF("<Func>", ["(", "<Params>", ")", "=>", "{", "<Sections>", "}",]),
+    genBNF("<Func>", ["(", ")=>", "{", "}",]),
+    genBNF("<Func>", ["(", ")=>", "{", "<Sections>", "}",]),
+    genBNF("<Func>", ["(", "<Params>", ")=>", "{", "}",]),
+    genBNF("<Func>", ["(", "<Params>", ")=>", "{", "<Sections>", "}",]),
     // 回傳
     genBNF("<Return>", ["return", "<Func>",]),
+    genBNF("<Return>", ["return", "<Self>",]),
     genBNF("<Return>", ["return", "<Assign>",]),
     genBNF("<Return>", ["return", "<Exp>",]),
     // 參數集
@@ -96,12 +99,17 @@ export let grammar = [
     genBNF("<Call>", ["<Id>", "(", "<Args>", ")",]),
     genBNF("<Call>", ["<Call>", "(", ")",]),
     genBNF("<Call>", ["<Call>", "(", "<Args>", ")",]),
+    genBNF("<Call>", ["<Self>", "(", ")",]),
+    genBNF("<Call>", ["<Self>", "(", "<Args>", ")",]),
+    // 呼叫自身
+    genBNF("<Self>", ["self", "(", ")",]),
+    genBNF("<Self>", ["self", "(", "<Args>", ")",]),
     // 引數集
     genBNF("<Args>", ["<Exp>",]),
     genBNF("<Args>", ["<Exp>", ",", "<Args>",]),
-    // 宣告
+    // 多重宣告
     genBNF("<Declares>", ["let", "<Declare>",]),
-    // 參數集
+    // 宣告
     genBNF("<Declare>", ["id",]),
     genBNF("<Declare>", ["id", ",", "<Declare>",]),
     genBNF("<Declare>", ["<Assign>",]),
@@ -127,12 +135,15 @@ export let grammar = [
     genBNF("<Factor>", ["op5", "<Factor>",]),
     genBNF("<Factor>", ["<Id>",]),
     genBNF("<Factor>", ["<Call>",]),
+    genBNF("<Factor>", ["<Self>",]),
     genBNF("<Factor>", ["float",]),
     genBNF("<Factor>", ["(", "<Exp>", ")",]),
 
     genBNF("<Id>", ["id",]),
 
 ]
+export let ruleDFAs = rules.map(rule => genDFA(rule.reg))
+export let cfsm = genCFSM(grammar, 0)
 
 export const download = () => {
     let filename = 'language.ts';
@@ -394,6 +405,7 @@ let grammarFunc = {
         let atFunc = funcs.length
         scopes = [...scopes, genScope([atScope], [], atFunc)]
         funcs = [...funcs, genFunc(atScope, genFuncType([]), "")]
+        funcs[atFunc].funcType.result = { name: "", type: "undetermined" }
         let head: string = ""
         let params: string = ""
         let result: string = ""
@@ -403,12 +415,12 @@ let grammarFunc = {
         head += `func $func_${atFunc}`
         if (sub[1].token.type == "<Params>") {
             grammarFunc[sub[1].token.type](sub[1].sub, atFunc)
-            if (sub[5].token.type == "<Sections>") {
-                main += grammarFunc[sub[5].token.type](sub[5].sub, atScope).code
-            }
-        } else {
             if (sub[4].token.type == "<Sections>") {
                 main += grammarFunc[sub[4].token.type](sub[4].sub, atScope).code
+            }
+        } else {
+            if (sub[3].token.type == "<Sections>") {
+                main += grammarFunc[sub[3].token.type](sub[3].sub, atScope).code
             }
         }
         params += funcs[atFunc]
@@ -429,14 +441,14 @@ let grammarFunc = {
                         return `${variableCode} (local $var_${variable.name}${scope.atScopes[0]} f32)`
                     }, variableCode)
             }, "")
-        if (funcs[atFunc].funcType.result == null ||
+        if (funcs[atFunc].funcType.result.type == "undetermined" ||
             funcs[atFunc].funcType.result.type == "float") {
             funcs[atFunc].funcType.result = { name: "", type: "float" }
             result = "f32"
         } else {
             result = "i32"
         }
-        result = funcs[atFunc].funcType.result.type == "float" ? "f32" : "i32"
+        // console.error(funcs[atFunc].funcType.result)
         funcs[atFunc].code = `(${head}\n${params}\n(result ${result})\n${variables}\n${main}${
             result == "f32" ?
                 `f32.const nan\nreturn` :
@@ -511,12 +523,43 @@ let grammarFunc = {
                 }
             }
             out += code
+            console.warn("call")
             out += `call_indirect (type $type_${funcs
                 .findIndex(func => eqType(func.funcType, type))})\n`
 
             return { code: out, type: (<typeFuncTypes>type).result.type }
         }
         return { code: out, type: null }
+    },
+    "<Self>": (sub: Array<typeSyntaxNode>, scope: number) => {
+        let out: string = ""
+        let atScope = scope
+        let type: "undetermined" | "float" | typeFuncTypes
+        let code
+        if (scopes[atScope].atFunc == null) {
+            console.error("自呼叫 self 只可在函式主體內使用。")
+        } else {
+            type = funcs[scopes[atScope].atFunc].funcType
+            console.log(type)
+            if (sub[2].token.type == "<Args>") {
+                let argsData = grammarFunc["<Args>"](sub[2].sub, atScope)
+                if (!eqType(<typeFuncTypes>type,
+                    argsData.type)) {
+                    console.error("引數錯誤")
+                }
+                out += argsData.code
+            } else {
+                if ((<typeFuncTypes>type).params.length != 0) {
+                    console.error("引數錯誤")
+                }
+            }
+            out += `i32.const ${scopes[atScope].atFunc + 1}\n`
+            out += `call_indirect (type $type_${scopes[atScope].atFunc})\n`
+
+            return { code: out, type: (<typeFuncTypes>type).result.type }
+        }
+        return { code: out, type: null }
+
     },
     "<Args>": (sub: Array<typeSyntaxNode>, scope: number) => {
         let atScope = scope
@@ -826,7 +869,7 @@ let grammarFunc = {
                         break
                     }
                     case "||": {
-                        out += `i32.and\n`
+                        out += `i32.or\n`
                         break
                     }
                 }
@@ -845,7 +888,6 @@ let grammarFunc = {
             case 1: {
                 switch (sub[0].token.type) {
                     case "<Id>": {
-                        console.warn(sub[0])
                         let code
                         ({ code, type } = grammarFunc[sub[0].token.type](sub[0].sub, atScope))
                         out += code
@@ -860,13 +902,20 @@ let grammarFunc = {
                         let code
                         ({ code, type } = grammarFunc[sub[0].token.type](sub[0].sub, atScope))
                         out += code
+                        break
+                    }
+                    case "<Self>": {
+                        let code
+                        ({ code, type } = grammarFunc[sub[0].token.type](sub[0].sub, atScope))
+                        out += code
+                        break
                     }
                 }
                 break
             }
             case 2: {
                 let code
-                ({ code, type } = grammarFunc[sub[1].token.type](sub[1].sub))
+                ({ code, type } = grammarFunc[sub[1].token.type](sub[1].sub, atScope))
                 out += code
                 switch (sub[0].token.value) {
                     case "+": {
@@ -901,7 +950,7 @@ let grammarFunc = {
             }
             case 3: {
                 let code
-                ({ code, type } = grammarFunc[sub[1].token.type](sub[1].sub))
+                ({ code, type } = grammarFunc[sub[1].token.type](sub[1].sub, atScope))
                 out += code
                 break
             }

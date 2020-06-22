@@ -1,5 +1,6 @@
 import { rules, grammar, codeGenerator } from "./mirgae"
-import { ruleDFAs, cfsm } from "./language"
+import { ruleDFAs, cfsm } from "./mirgae"
+// import { ruleDFAs, cfsm } from "./language"
 import { Lex_ } from "./scanner"
 import { Yacc } from "./parser"
 import wabt_ from "./wabt"
@@ -63,10 +64,13 @@ let compiler = (source: string) => {
     (start $main)
 )`
     wat = compiler(`
-    let a=1,b=2;
-    while(a<10){
-        a=a+1;log(a);
-    }
+    let fib=(n) =>{
+        if((n==0)||(n==1)){
+            return n;
+        }
+        return self(n - 1)+self(n - 2);
+    };
+    log(fib(10));
     $
     `)
     console.log(wat)
