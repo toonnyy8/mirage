@@ -1,4 +1,4 @@
-import { genBNF, typeGrammar, genGrammar, genCFSM } from "./bnf2cfsm"
+import { genBNF, typeGrammar, genGrammar, genCFSM, typeCFSM } from "./bnf2cfsm"
 
 export interface typeToken { type: string, value: string }
 
@@ -7,8 +7,8 @@ export interface typeSyntaxNode {
     sub: Array<typeSyntaxNode>
 }
 
-export const Yacc = (grammar: typeGrammar, startRule = 0) => {
-    let cfsm = genCFSM(grammar, startRule)
+export const Yacc = (grammar: typeGrammar, cfsm: typeCFSM, startRule = 0) => {
+    // let cfsm = genCFSM(grammar, startRule)
     console.log(cfsm)
     let step = [0]
 

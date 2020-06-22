@@ -14,7 +14,7 @@ export const genDFA = pipe(
 )
 
 export const driver = (dfa: DFA) => {
-    return (source: string) => {
+    return (source: string): number => {
         let i = 0
         let s = 0
         let lastExit = null
@@ -34,6 +34,50 @@ export const driver = (dfa: DFA) => {
     }
 
 }
+const scanner_ = (rules: Array<{ type: string, reg: string }>, ruleDFAs: Array<DFA>) => {
+    let ruleDrivers = ruleDFAs.map(dfa => driver(dfa))
+
+    return (source: string) => {
+        return pipe(
+            () => ruleDrivers.map((ruleDriver, idx) => {
+                return { rulePriority: idx, tokenEnd: ruleDriver(source) }
+            }).sort((a, b) => {
+                if (a.tokenEnd > b.tokenEnd) {
+                    return -1;
+                } else if (a.tokenEnd < b.tokenEnd) {
+                    return 1;
+                } else if (a.rulePriority < b.rulePriority) {
+                    return -1;
+                } else if (a.rulePriority > b.rulePriority) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }),
+            (sandidateTokens) => {
+                // if (sandidateTokens[0].tokenEnd == -1) {
+                //     console.error("ERROR")
+                // }
+                return {
+                    type: rules[sandidateTokens[0].rulePriority].type,
+                    tokenEnd: sandidateTokens[0].tokenEnd
+                }
+            })(null)
+    }
+}
+
+export function* Lex_(source: string, rules: Array<{ type: string, reg: string }>, ruleDFAs: Array<DFA>) {
+    let scannerFn = scanner_(rules, ruleDFAs)
+    while (true) {
+        let token = scannerFn(source)
+        if (token.tokenEnd == -1) {
+            return
+        }
+        yield ({ type: token.type, value: source.slice(0, token.tokenEnd) })
+        source = source.slice(token.tokenEnd)
+    }
+}
+
 export const scanner = (rules: Array<{ type: string, reg: string }>) => {
     let ruleDrivers = rules.map(rule => {
         return pipe(

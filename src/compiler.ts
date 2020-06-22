@@ -1,9 +1,49 @@
+import { rules, grammar, codeGenerator } from "./mirgae"
+import { ruleDFAs, cfsm } from "./language"
+import { Lex_ } from "./scanner"
+import { Yacc } from "./parser"
 import wabt_ from "./wabt"
+
+let compiler = (source: string) => {
+    let lex = Lex_(source, rules, ruleDFAs)
+    let yacc = Yacc(grammar, cfsm)
+
+
+    let token: { type: string, value: string }
+    do {
+        token = <typeof token>lex.next().value
+        if (token && token.type == "gap") {
+            console.warn(token)
+        }
+        if (token && token.type != "gap") {
+            console.log(token)
+            console.log(yacc(token))
+        }
+    } while (token != null)
+
+    let syntaxTree = yacc()
+    console.log(syntaxTree)
+    console.log(source)
+    let code = codeGenerator(syntaxTree.sub).code
+    return code
+}
+// console.log(
+//     compiler(`
+// let f=(a,b)=>{
+//     return ()=>{return 9;};
+// },a=1;
+
+// f(1,2)();
+// log(1%2);
+// $
+// `)
+// );
+
 (async () => {
     const wabt = wabt_()
     console.log(wabt)
     const inputWat = "main.wat"
-    const wat = `;;wasm
+    let wat = `;;wasm
 (module
     (import "env" "log" (func $log (param i32)))
     (func $main
@@ -22,6 +62,14 @@ import wabt_ from "./wabt"
     )
     (start $main)
 )`
+    wat = compiler(`
+    let a=1,b=2;
+    while(a<10){
+        a=a+1;log(a);
+    }
+    $
+    `)
+    console.log(wat)
 
     interface Module {
         [key: string]: any,

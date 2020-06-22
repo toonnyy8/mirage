@@ -1,7 +1,5 @@
 import { scanner, driver, genDFA, Lex } from "./scanner"
-// import "./scanner/test"
 import { genBNF, genGrammar, typeSyntaxNode, Yacc, genCFSM } from "./parser"
-// import "./parser/test"
 
 let a2z = "(a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)"
 let A2Z = "(A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z)"
@@ -22,7 +20,7 @@ let all = `(${a2z}|${A2Z}|${digit}|+|-|\\*|/|(\\\\)|(\\|)|!|@|#|$|%|^|&|(\\()|(\
 let comment = `(//${all}*)`
 let gap = `(${space}|${comment})`
 
-let rules = [
+export let rules = [
     { type: "gap", reg: gap },
     { type: "return", reg: `return` },
     { type: "let", reg: `let` },
@@ -48,7 +46,7 @@ let rules = [
     { type: "op1", reg: op1 },
     { type: "id", reg: id },
 ]
-let g = [
+export let grammar = [
     // 主結構解析
     genBNF("<Program>", ["<Sections>", "EOF",]),
 
@@ -135,6 +133,22 @@ let g = [
     genBNF("<Id>", ["id",]),
 
 ]
+
+export const download = () => {
+    let filename = 'language.ts';
+    let file = `
+export let ruleDFAs = ${JSON.stringify(rules.map(rule => genDFA(rule.reg)))}
+export let cfsm = ${JSON.stringify(genCFSM(grammar, 0))}
+`
+    let a = document.createElement('a');
+    let blob = new Blob([file],)
+    let url = window.URL.createObjectURL(blob);
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
 
 interface typeVariable {
     name: string,
@@ -267,11 +281,11 @@ let grammarFunc = {
             case 1: {
                 switch (sub[0].token.type) {
                     case "<If>": {
-                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
+                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope).code
                         break
                     }
                     case "<While>": {
-                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope)
+                        out += grammarFunc[sub[0].token.type](sub[0].sub, atScope).code
                         break
                     }
                 }
@@ -305,7 +319,7 @@ let grammarFunc = {
     "<Log>": (sub: Array<typeSyntaxNode>, scope: number) => {
         let atScope = scope
         let out: string = ""
-        let { code, type } = grammarFunc[sub[2].token.type](sub[2].sub)
+        let { code, type } = grammarFunc[sub[2].token.type](sub[2].sub, scope)
         if (type != "float") {
             console.error(`The argument type of log is error`)
         }
@@ -319,7 +333,7 @@ let grammarFunc = {
         let out: string = ""
         let type: "undetermined" | "float" | typeFuncTypes
         let code
-        ({ code, type } = grammarFunc[sub[2].token.type](sub[2].sub))
+        ({ code, type } = grammarFunc[sub[2].token.type](sub[2].sub, scope))
         out += code
         if (type != "float") {
             out += `drop\n`
@@ -362,7 +376,7 @@ let grammarFunc = {
         scopes = [...scopes, genScope([atScope, ...scopes[scope].atScopes,], [], scopes[scope].atFunc,)]
         let out: string = ""
         out += `loop\n`
-        out += grammarFunc[sub[2].token.type](sub[2].sub).code
+        out += grammarFunc[sub[2].token.type](sub[2].sub, scope).code
         out += `f32.const 0\n`
         out += `f32.ne\n`
         out += `if\n`
@@ -831,6 +845,7 @@ let grammarFunc = {
             case 1: {
                 switch (sub[0].token.type) {
                     case "<Id>": {
+                        console.warn(sub[0])
                         let code
                         ({ code, type } = grammarFunc[sub[0].token.type](sub[0].sub, atScope))
                         out += code
@@ -924,47 +939,4 @@ let grammarFunc = {
     }
 }
 
-
-let source = `
-let f=(a,b)=>{
-    return ()=>{return 9;};
-},a=1;
-
-f(1,2)();
-log(1%2);
-$
-`
-let lex = Lex(
-    source,
-    rules,
-)
-
-let yacc = Yacc(g, genCFSM(g))
-
-let token: { type: string, value: string }
-do {
-    token = <typeof token>lex.next().value
-    if (token && token.type == "gap") {
-        console.warn(token)
-    }
-    if (token && token.type != "gap") {
-        console.log(token)
-        console.log(yacc(token))
-    }
-} while (token != null)
-
-let syntaxTree = yacc()
-console.log(syntaxTree)
-
-console.log(
-    source
-)
-console.log(
-    grammarFunc[syntaxTree.token.type](syntaxTree.sub).code
-)
-console.log(
-    funcs
-)
-console.log(
-    scopes
-)
+export let codeGenerator = grammarFunc["<Program>"]

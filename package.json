@@ -25,7 +25,8 @@
     "core-js": "^3.6.5",
     "immutable": "^4.0.0-rc.12",
     "parcel": "^1.12.4",
-    "regenerator-runtime": "^0.13.5"
+    "regenerator-runtime": "^0.13.5",
+    "wabt": "^1.0.17"
   },
   "devDependencies": {
     "typescript": "^3.9.5"

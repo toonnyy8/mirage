@@ -161,7 +161,7 @@ interface typeCFSMElem {
 export type typeCFSM = Array<typeCFSMElem>
 
 // closurer 接收 grammar 後產生該語法的 closure 生成器
-export const genCFSM = (grammar: typeGrammar, startRule: number) => {
+export const genCFSM = (grammar: typeGrammar, startRule: number = 0) => {
     let genClosure = closurer(grammar)
 
     // closure 生成器接收 未分析的ClosureElem集合 與 已分析的ClosureElem集合 之後會生成一整個 closure
